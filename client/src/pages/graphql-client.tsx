@@ -539,18 +539,8 @@ export default function GraphQLClientPage() {
       }
 
       if (result.response.data?.__schema) {
-        const schemaData = result.response.data.__schema;
-        console.log('Raw schema data:', schemaData);
-        console.log('QueryType in schema:', schemaData.queryType);
-        
-        // Find the actual Query type definition
-        const queryTypeName = schemaData.queryType?.name;
-        const queryTypeDefinition = schemaData.types.find((t: any) => t.name === queryTypeName);
-        console.log('Query type definition:', queryTypeDefinition);
-        console.log('Query fields:', queryTypeDefinition?.fields);
-        
-        setSchema(schemaData);
-        setShowDocs(true);
+        setSchema(result.response.data.__schema);
+        // Don't auto-open docs on schema load
         toast({
           title: 'Schema Loaded',
           description: 'GraphQL schema documentation is now available',
@@ -572,7 +562,6 @@ export default function GraphQLClientPage() {
   // Auto-load schema when endpoint changes
   useEffect(() => {
     if (endpoint && endpoint.trim() !== '') {
-      console.log('Auto-loading schema for endpoint:', endpoint);
       fetchSchema();
     }
   }, [endpoint, fetchSchema]);

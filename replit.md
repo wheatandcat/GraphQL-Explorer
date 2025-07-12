@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **July 12, 2025**: Completed GraphQL autocomplete/suggestion system
+  - Automatic schema loading when endpoint is set
+  - Real-time suggestions for GraphQL fields and operations
+  - Auto-indentation support (Enter key and Tab key)
+  - Documentation panel remains closed by default
+  - Clean production-ready code without debug logs
+
 - **December 12, 2024**: Implemented resizable layout for Query Editor and Response sections
   - Added drag-to-resize functionality between query editor and response panels
   - Implemented localStorage persistence for layout preferences

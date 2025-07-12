@@ -87,10 +87,7 @@ export function MonacoEditor({
 
   // Parse current context and get suggestions
   const getSuggestions = useCallback((text: string, position: number): Suggestion[] => {
-    console.log('getSuggestions called:', { hasSchema: !!schema, language, position, text: text.substring(0, 100) });
-    
     if (!schema || language !== 'graphql') {
-      console.log('No schema or not GraphQL, returning empty');
       return [];
     }
 
@@ -121,17 +118,10 @@ export function MonacoEditor({
       const queryTypeName = schema.queryType?.name || 'Query';
       let currentType = schema.types?.find(t => t.name === queryTypeName) || null;
       
-      console.log('Schema queryType name:', queryTypeName);
-      console.log('Found Query type in types array:', currentType?.name);
-      console.log('Query type fields:', currentType?.fields?.map(f => f.name));
-      
       // If still not found, try to find any type with query-like name
       if (!currentType) {
         currentType = schema.types?.find(t => t.name.toLowerCase() === 'query') || null;
-        console.log('Fallback Query type found:', currentType?.name);
       }
-      
-      console.log('Initial currentType:', currentType?.name, 'Fields count:', currentType?.fields?.length);
       
       // Parse the field path more accurately
       // Split by braces and analyze each level
@@ -176,11 +166,9 @@ export function MonacoEditor({
     };
 
     const currentType = getContextType();
-    console.log('Current type:', currentType?.name, 'Fields:', currentType?.fields?.length);
     
     // Check if we're at root level (no braces yet)
     const openBraces = (beforeCursor.match(/{/g) || []).length;
-    console.log('Open braces count:', openBraces);
     
     if (openBraces === 0) {
       const partial = currentLine.trim();
@@ -211,29 +199,22 @@ export function MonacoEditor({
         });
       }
       
-      console.log('Operation suggestions:', operationSuggestions);
       return operationSuggestions;
     }
 
     if (!currentType?.fields) {
-      console.log('No fields in current type');
       return [];
     }
 
     // Check if we're looking for field suggestions
     const fieldMatch = currentLine.match(/\s*(\w*)$/);
-    console.log('Field match:', fieldMatch, 'Current line:', currentLine);
     
     if (fieldMatch) {
       const partial = fieldMatch[1];
-      console.log('Partial match:', partial);
       
       if (!currentType?.fields) {
-        console.log('No fields in current type for suggestions');
         return [];
       }
-      
-      console.log('Available fields:', currentType.fields.map(f => f.name));
       
       const suggestions = currentType.fields
         .filter(field => field.name.toLowerCase().includes(partial.toLowerCase()))
@@ -256,8 +237,6 @@ export function MonacoEditor({
             insertText,
           };
         });
-      
-      console.log('Generated field suggestions:', suggestions);
       
       // Sort suggestions: starts with first, then contains, then alphabetical
       return suggestions.sort((a, b) => {
@@ -296,20 +275,15 @@ export function MonacoEditor({
     const currentLine = beforeCursor.split('\n').pop() || '';
     
     if (language === 'graphql' && schema) {
-      console.log('Input change:', { lastChar, currentLine, position });
-      
       // More aggressive triggering: trigger on any letter or after braces
       if (lastChar && (/[a-zA-Z]/.test(lastChar) || lastChar === '{' || lastChar === ' ')) {
-        console.log('Triggering suggestions due to character:', lastChar);
         triggerSuggestions(newValue, position);
       } else {
         // Continue showing suggestions if we're still typing in a word
         const wordMatch = currentLine.match(/\w+$/);
         if (wordMatch && wordMatch[0].length > 0) {
-          console.log('Continuing suggestions for word:', wordMatch[0]);
           triggerSuggestions(newValue, position);
         } else {
-          console.log('Hiding suggestions');
           setShowSuggestions(false);
         }
       }
