@@ -401,6 +401,8 @@ export default function GraphQLClientPage() {
     localStorage.setItem('graphql-client-history', JSON.stringify(queryHistory));
   }, [queryHistory]);
 
+
+
   // Load query from history
   const loadFromHistory = useCallback((historyItem: QueryHistory) => {
     setQuery(historyItem.query);
@@ -556,6 +558,14 @@ export default function GraphQLClientPage() {
       setLoadingSchema(false);
     }
   }, [endpoint, headers, toast]);
+
+  // Auto-load schema when endpoint changes
+  useEffect(() => {
+    if (endpoint && endpoint.trim() !== '') {
+      console.log('Auto-loading schema for endpoint:', endpoint);
+      fetchSchema();
+    }
+  }, [endpoint, fetchSchema]);
 
   // Toggle type expansion in docs
   const toggleTypeExpansion = useCallback((typeName: string) => {
