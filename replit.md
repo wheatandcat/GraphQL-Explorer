@@ -17,6 +17,8 @@ Preferred communication style: Simple, everyday language.
   - Persistent storage for all endpoint configurations
   - Current endpoint highlighting and last-used tracking
   - Fixed endpoint switching to properly update URL input field
+  - Auto-load latest query and variables when switching endpoints
+  - Endpoint manager closes automatically after switching
 
 - **July 12, 2025**: Completed GraphQL autocomplete/suggestion system
   - Automatic schema loading when endpoint is set

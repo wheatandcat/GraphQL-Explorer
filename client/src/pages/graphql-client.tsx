@@ -222,6 +222,19 @@ export default function GraphQLClientPage() {
       setEndpoint(targetEndpoint.url);
       setHeaders(targetEndpoint.headers);
       
+      // Load latest query and variables from history if available
+      if (targetEndpoint.history.length > 0) {
+        const latestHistory = targetEndpoint.history[0]; // History is sorted by newest first
+        setQuery(latestHistory.query);
+        setVariables(latestHistory.variables);
+      } else {
+        // Set default query and variables if no history
+        setQuery(`query {
+  # Enter your GraphQL query here
+}`);
+        setVariables('{}');
+      }
+      
       // Update last used timestamp for the target endpoint
       setEndpoints(prev => prev.map(ep => 
         ep.id === endpointId 
@@ -231,7 +244,7 @@ export default function GraphQLClientPage() {
       
       toast({
         title: 'Endpoint Switched',
-        description: `Switched to "${targetEndpoint.name}"`,
+        description: `Switched to "${targetEndpoint.name}" with latest query`,
       });
     }
   }, [endpoints, toast]);
@@ -1626,7 +1639,10 @@ export default function GraphQLClientPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => switchToEndpoint(ep.id)}
+                              onClick={() => {
+                                switchToEndpoint(ep.id);
+                                setShowEndpointManager(false);
+                              }}
                               className="p-1 text-blue-600 hover:text-blue-700"
                               title="Switch to this endpoint"
                             >
