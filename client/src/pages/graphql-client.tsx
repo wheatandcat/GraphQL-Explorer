@@ -576,13 +576,19 @@ export default function GraphQLClientPage() {
 
 
 
-  // Get user-defined types (filter out built-in GraphQL types)
+  // Get user-defined types (filter out built-in GraphQL types and root types)
   const getUserDefinedTypes = useCallback((types: GraphQLType[]) => {
+    const rootTypeNames = [];
+    if (schema?.queryType) rootTypeNames.push(schema.queryType.name);
+    if (schema?.mutationType) rootTypeNames.push(schema.mutationType.name);
+    if (schema?.subscriptionType) rootTypeNames.push(schema.subscriptionType.name);
+    
     return types.filter(type => 
       !type.name?.startsWith('__') && 
-      !['String', 'Int', 'Float', 'Boolean', 'ID'].includes(type.name || '')
+      !['String', 'Int', 'Float', 'Boolean', 'ID'].includes(type.name || '') &&
+      !rootTypeNames.includes(type.name || '')
     );
-  }, []);
+  }, [schema]);
 
   // Find type by name in schema
   const findTypeByName = useCallback((typeName: string): GraphQLType | null => {
