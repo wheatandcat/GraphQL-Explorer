@@ -603,9 +603,6 @@ export default function GraphQLClientPage() {
                                 {formatTimestamp(item.timestamp)}
                               </span>
                             </div>
-                            <div className="text-xs text-gray-600 mb-1 truncate">
-                              {item.endpoint}
-                            </div>
                             <div className="text-xs text-gray-500 font-mono bg-gray-100 p-1 rounded truncate">
                               {item.query.replace(/\s+/g, ' ').trim().substring(0, 60)}
                               {item.query.length > 60 ? '...' : ''}

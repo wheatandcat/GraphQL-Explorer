@@ -22,6 +22,7 @@ Preferred communication style: Simple, everyday language.
   - Click any history item to restore query, variables, and endpoint
   - Stores up to 50 recent queries with timestamps and query names
   - LocalStorage persistence for history data
+  - Endpoint display removed from history panel for cleaner UI
 
 ## System Architecture
 
