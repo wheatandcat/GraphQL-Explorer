@@ -570,19 +570,6 @@ export default function GraphQLClientPage() {
     });
   }, []);
 
-  // Render GraphQL type string
-  const renderType = useCallback((type: GraphQLType): string => {
-    if (type.kind === 'NON_NULL') {
-      return renderType(type.ofType!) + '!';
-    }
-    if (type.kind === 'LIST') {
-      return '[' + renderType(type.ofType!) + ']';
-    }
-    return type.name || 'Unknown';
-  }, []);
-
-
-
   // Get user-defined types (filter out built-in GraphQL types and root types)
   const getUserDefinedTypes = useCallback((types: GraphQLType[]) => {
     const rootTypeNames = [];
@@ -622,6 +609,61 @@ export default function GraphQLClientPage() {
       }, 100);
     }
   }, [findTypeByName]);
+
+  // Render GraphQL type string
+  const renderType = useCallback((type: GraphQLType): string => {
+    if (type.kind === 'NON_NULL') {
+      return renderType(type.ofType!) + '!';
+    }
+    if (type.kind === 'LIST') {
+      return '[' + renderType(type.ofType!) + ']';
+    }
+    return type.name || 'Unknown';
+  }, []);
+
+  // Render clickable type with navigation
+  const renderClickableType = useCallback((type: GraphQLType): React.ReactNode => {
+    if (type.kind === 'NON_NULL') {
+      return (
+        <>
+          {renderClickableType(type.ofType!)}
+          <span>!</span>
+        </>
+      );
+    }
+    if (type.kind === 'LIST') {
+      return (
+        <>
+          <span>[</span>
+          {renderClickableType(type.ofType!)}
+          <span>]</span>
+        </>
+      );
+    }
+    
+    const typeName = type.name || 'Unknown';
+    const isBuiltIn = ['String', 'Int', 'Float', 'Boolean', 'ID'].includes(typeName);
+    
+    if (isBuiltIn) {
+      return <span className="text-orange-600 font-mono text-sm font-semibold">{typeName}</span>;
+    }
+    
+    // Check if this type exists in schema for navigation
+    const targetType = findTypeByName(typeName);
+    
+    if (targetType) {
+      return (
+        <span 
+          className="text-orange-600 font-mono text-sm font-semibold cursor-pointer hover:underline hover:bg-orange-50 px-1 rounded transition-colors"
+          onClick={(e) => handleTypeClick(typeName, e)}
+        >
+          {typeName}
+        </span>
+      );
+    }
+    
+    return <span className="text-orange-600 font-mono text-sm font-semibold">{typeName}</span>;
+  }, [findTypeByName, handleTypeClick]);
 
   // Format timestamp for display
   const formatTimestamp = useCallback((timestamp: number): string => {
@@ -1070,12 +1112,19 @@ export default function GraphQLClientPage() {
                               <span className="text-blue-600 font-mono text-sm mr-1">{field.name}</span>
                               {field.args && field.args.length > 0 && (
                                 <span className="text-gray-500 text-sm">
-                                  ({field.args.map(arg => `${arg.name}: ${renderType(arg.type)}`).join(', ')})
+                                  ({field.args.map((arg, index) => (
+                                    <span key={arg.name}>
+                                      {index > 0 && ', '}
+                                      <span className="text-gray-700">{arg.name}</span>
+                                      <span>: </span>
+                                      {renderClickableType(arg.type)}
+                                    </span>
+                                  ))})
                                 </span>
                               )}
                               <span className="text-gray-500 text-sm mx-1">:</span>
-                              <span className="text-orange-600 font-mono text-sm font-semibold">
-                                {renderType(field.type)}
+                              <span>
+                                {renderClickableType(field.type)}
                               </span>
                             </div>
                             {field.description && (
