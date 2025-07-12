@@ -120,15 +120,27 @@ export default function GraphQLClientPage() {
   // State derived from current endpoint
   const [endpoint, setEndpoint] = useState(currentEndpoint.url);
   const [headers, setHeaders] = useState<Header[]>(currentEndpoint.headers);
-  const [variables, setVariables] = useState('{}');
-  const [query, setQuery] = useState(`query {
+  const [variables, setVariables] = useState(() => {
+    // Load latest variables from current endpoint's history
+    if (currentEndpoint.history.length > 0) {
+      return currentEndpoint.history[0].variables;
+    }
+    return '{}';
+  });
+  const [query, setQuery] = useState(() => {
+    // Load latest query from current endpoint's history
+    if (currentEndpoint.history.length > 0) {
+      return currentEndpoint.history[0].query;
+    }
+    return `query {
   countries {
     code
     name
     capital
     currency
   }
-}`);
+}`;
+  });
   const [response, setResponse] = useState('');
   const [responseHeaders, setResponseHeaders] = useState('');
   const [loading, setLoading] = useState(false);
@@ -260,6 +272,12 @@ export default function GraphQLClientPage() {
     };
     setEndpoints(prev => [...prev, newEndpoint]);
     setCurrentEndpointId(newEndpoint.id);
+    
+    // Set default query and variables for new endpoint
+    setQuery(`query {
+  # Enter your GraphQL query here
+}`);
+    setVariables('{}');
     setNewEndpointName('');
     setNewEndpointUrl('');
     toast({

@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
   - Endpoint manager closes automatically after switching
   - Simplified endpoint selector to show only endpoint names (removed long URLs)
   - Cleaned up UI by removing Download, Help, and Settings buttons for streamlined interface
+  - Modified Query Editor and Variables initialization to load latest values from endpoint history on reload
 
 - **July 12, 2025**: Completed GraphQL autocomplete/suggestion system
   - Automatic schema loading when endpoint is set
