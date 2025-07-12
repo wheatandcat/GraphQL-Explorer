@@ -914,71 +914,6 @@ export default function GraphQLClientPage() {
 
             {/* Query Editor */}
             <div className="flex-1 relative">
-              {/* History Panel */}
-              {showHistory && (
-                <div className="absolute top-0 right-0 w-80 h-full bg-white border-l border-gray-200 shadow-lg z-10 flex flex-col">
-                  <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-                    <h3 className="text-sm font-medium text-gray-700">Query History</h3>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearHistory}
-                        className="text-xs text-red-600 hover:text-red-700"
-                        disabled={queryHistory.length === 0}
-                      >
-                        Clear All
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowHistory(false)}
-                        className="p-1"
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-y-auto">
-                    {queryHistory.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                        <Clock className="w-8 h-8 mb-2" />
-                        <p className="text-sm">No query history yet</p>
-                        <p className="text-xs text-gray-400">Execute queries to build history</p>
-                      </div>
-                    ) : (
-                      <div className="p-2 space-y-2">
-                        {queryHistory.map((item) => (
-                          <div
-                            key={item.id}
-                            onClick={() => loadFromHistory(item)}
-                            className="p-3 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-colors"
-                          >
-                            <div className="flex items-start justify-between mb-1">
-                              <h4 className="text-xs font-medium text-gray-900 truncate flex-1">
-                                {item.name}
-                              </h4>
-                              <span className="text-xs text-gray-500 ml-2">
-                                {formatTimestamp(item.timestamp)}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500 font-mono bg-gray-100 p-1 rounded truncate">
-                              {item.query.replace(/\s+/g, ' ').trim().substring(0, 60)}
-                              {item.query.length > 60 ? '...' : ''}
-                            </div>
-                            {item.variables && item.variables !== '{}' && (
-                              <div className="text-xs text-gray-400 mt-1">
-                                Has variables
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <MonacoEditor
                 value={query}
                 onChange={setQuery}
@@ -1278,6 +1213,106 @@ export default function GraphQLClientPage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
+      {/* History Panel - Full Screen Right Side Drawer */}
+      {showHistory && (
+        <div className="fixed top-0 right-0 w-1/2 h-screen bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-3">
+              <span className="text-gray-600 text-sm">Query History</span>
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center">
+              Query History
+            </h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHistory(false)}
+              className="p-1"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search history..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Action Bar */}
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+            <span className="text-sm text-gray-600">
+              {queryHistory.length} {queryHistory.length === 1 ? 'query' : 'queries'} saved
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearHistory}
+              className="text-xs text-red-600 hover:text-red-700"
+              disabled={queryHistory.length === 0}
+            >
+              Clear All
+            </Button>
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              {queryHistory.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 pt-20">
+                  <Clock className="w-16 h-16 mb-4 text-gray-300" />
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">No query history yet</h3>
+                  <p className="text-sm text-gray-400 text-center">
+                    Execute GraphQL queries to build your history.<br />
+                    Your queries will be automatically saved here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {queryHistory.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => loadFromHistory(item)}
+                      className="p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-colors group"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-gray-900 truncate flex-1 group-hover:text-blue-600">
+                          {item.name}
+                        </h4>
+                        <span className="text-xs text-gray-500 ml-3 whitespace-nowrap">
+                          {formatTimestamp(item.timestamp)}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600 font-mono bg-gray-100 p-3 rounded border overflow-hidden">
+                        <pre className="whitespace-pre-wrap text-wrap break-words">
+                          {item.query.trim().substring(0, 200)}
+                          {item.query.length > 200 ? '...' : ''}
+                        </pre>
+                      </div>
+                      {item.variables && item.variables !== '{}' && (
+                        <div className="text-xs text-blue-600 mt-2 flex items-center">
+                          <Code className="w-3 h-3 mr-1" />
+                          Has variables
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-400 mt-2">
+                        Click to load this query
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
