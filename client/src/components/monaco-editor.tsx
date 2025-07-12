@@ -96,10 +96,10 @@ export function MonacoEditor({
     // Analyze the current context more precisely
     const getContextType = (): GraphQLType | null => {
       // First check if we're in a basic operation
-      if (beforeCursor.includes('mutation')) {
+      if (beforeCursor.includes('mutation') && !beforeCursor.includes('query')) {
         return schema.mutationType || null;
       }
-      if (beforeCursor.includes('subscription')) {
+      if (beforeCursor.includes('subscription') && !beforeCursor.includes('query')) {
         return schema.subscriptionType || null;
       }
       
@@ -112,33 +112,42 @@ export function MonacoEditor({
         return null;
       }
       
-      if (openBraces === 1 && closeBraces === 0) {
-        // First level inside operation
-        return schema.queryType || null;
-      }
-      
-      // Try to parse nested field context
-      const fieldPath = [];
+      // Start with the query type as default
       let currentType = schema.queryType;
       
-      // Simple parsing: look for field selections in braces
-      const bracesContent = beforeCursor.split('{');
-      if (bracesContent.length > 1) {
-        const lastSelection = bracesContent[bracesContent.length - 1];
-        const fieldMatches = lastSelection.match(/(\w+)(?:\([^)]*\))?\s*{?/g);
-        
-        if (fieldMatches) {
-          for (const match of fieldMatches) {
-            const fieldName = match.replace(/\([^)]*\)|\s*{?/g, '');
-            if (currentType?.fields) {
-              const field = currentType.fields.find(f => f.name === fieldName);
-              if (field) {
-                let fieldType = field.type;
-                // Unwrap NON_NULL and LIST wrappers
-                while (fieldType.kind === 'NON_NULL' || fieldType.kind === 'LIST') {
-                  fieldType = fieldType.ofType!;
+      // Parse the field path more accurately
+      // Split by braces and analyze each level
+      const parts = beforeCursor.split('{');
+      if (parts.length > 1) {
+        for (let i = 1; i < parts.length; i++) {
+          const content = parts[i];
+          // Remove everything after the last closing brace if any
+          const lastCloseBrace = content.lastIndexOf('}');
+          const relevantContent = lastCloseBrace !== -1 
+            ? content.substring(lastCloseBrace + 1) 
+            : content;
+          
+          // Extract field names (handling arguments and whitespace)
+          const fieldMatches = relevantContent.match(/(\w+)(?:\s*\([^)]*\))?/g);
+          
+          if (fieldMatches && currentType?.fields) {
+            // Take the last field as the current context
+            const lastField = fieldMatches[fieldMatches.length - 1];
+            const fieldName = lastField.replace(/\s*\([^)]*\)/, '');
+            
+            const field = currentType.fields.find(f => f.name === fieldName);
+            if (field) {
+              let fieldType = field.type;
+              // Unwrap NON_NULL and LIST wrappers
+              while (fieldType.kind === 'NON_NULL' || fieldType.kind === 'LIST') {
+                fieldType = fieldType.ofType!;
+              }
+              
+              if (fieldType.name) {
+                const nextType = findTypeByName(fieldType.name);
+                if (nextType) {
+                  currentType = nextType;
                 }
-                currentType = findTypeByName(fieldType.name!);
               }
             }
           }
@@ -191,8 +200,10 @@ export function MonacoEditor({
     if (fieldMatch) {
       const partial = fieldMatch[1];
       
+      if (!currentType?.fields) return [];
+      
       const suggestions = currentType.fields
-        .filter(field => field.name.toLowerCase().startsWith(partial.toLowerCase()))
+        .filter(field => field.name.toLowerCase().includes(partial.toLowerCase()))
         .map(field => {
           const hasComplexType = field.type.kind === 'OBJECT' || 
                                 (field.type.kind === 'NON_NULL' && field.type.ofType?.kind === 'OBJECT') ||
@@ -202,23 +213,23 @@ export function MonacoEditor({
           if (field.args && field.args.length > 0) {
             insertText += '(';
           } else if (hasComplexType) {
-            insertText += ' {\n  ';
+            insertText += ' {';
           }
           
           return {
             label: field.name,
             detail: getTypeString(field.type),
-            documentation: field.description,
+            documentation: field.description || `Field of type ${getTypeString(field.type)}`,
             insertText,
           };
         });
       
-      // Sort suggestions: exact matches first, then alphabetical
+      // Sort suggestions: starts with first, then contains, then alphabetical
       return suggestions.sort((a, b) => {
-        const aExact = a.label.toLowerCase() === partial.toLowerCase();
-        const bExact = b.label.toLowerCase() === partial.toLowerCase();
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
+        const aStarts = a.label.toLowerCase().startsWith(partial.toLowerCase());
+        const bStarts = b.label.toLowerCase().startsWith(partial.toLowerCase());
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
         return a.label.localeCompare(b.label);
       });
     }
@@ -244,14 +255,32 @@ export function MonacoEditor({
     onChange(newValue);
     setCursorPosition(position);
 
-    // Auto-trigger suggestions when typing letters
+    // Auto-trigger suggestions when typing letters or after certain characters
     const lastChar = newValue[position - 1];
-    if (language === 'graphql' && lastChar && /[a-zA-Z{]/.test(lastChar)) {
-      triggerSuggestions(newValue, position);
+    const beforeCursor = newValue.substring(0, position);
+    const currentLine = beforeCursor.split('\n').pop() || '';
+    
+    if (language === 'graphql' && schema) {
+      // Trigger suggestions on letters, after braces, or after spaces in certain contexts
+      if (lastChar && (/[a-zA-Z]/.test(lastChar) || lastChar === '{' || 
+          (lastChar === ' ' && currentLine.includes('{')))) {
+        triggerSuggestions(newValue, position);
+      } else if (currentLine.trim() === '' || /^\s*$/.test(currentLine)) {
+        // Hide suggestions on empty lines
+        setShowSuggestions(false);
+      } else {
+        // Continue showing suggestions if we're still typing in a word
+        const wordMatch = currentLine.match(/\w+$/);
+        if (wordMatch && wordMatch[0].length > 0) {
+          triggerSuggestions(newValue, position);
+        } else {
+          setShowSuggestions(false);
+        }
+      }
     } else {
       setShowSuggestions(false);
     }
-  }, [onChange, language, triggerSuggestions]);
+  }, [onChange, language, triggerSuggestions, schema]);
 
   // Handle key down for suggestion navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -371,35 +400,42 @@ export function MonacoEditor({
       {showSuggestions && suggestions.length > 0 && (
         <div
           ref={suggestionsRef}
-          className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
+          className="absolute z-50 bg-white border border-gray-300 rounded-md shadow-lg max-h-64 overflow-y-auto"
           style={{
             top: '100%',
             left: '16px',
             minWidth: '300px',
+            maxWidth: '500px',
           }}
         >
           {suggestions.map((suggestion, index) => (
             <div
               key={suggestion.label}
-              className={`px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+              className={`px-3 py-2 cursor-pointer ${
                 index === selectedSuggestion 
-                  ? 'bg-blue-50 border-blue-200' 
-                  : 'hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white' 
+                  : 'hover:bg-gray-100 text-gray-900'
               }`}
               onClick={() => handleSuggestionClick(suggestion)}
             >
               <div className="flex items-center justify-between">
-                <span className="font-mono text-sm font-semibold text-blue-600">
+                <span className={`font-mono text-sm ${
+                  index === selectedSuggestion ? 'text-white' : 'text-gray-900'
+                }`}>
                   {suggestion.label}
                 </span>
                 {suggestion.detail && (
-                  <span className="text-xs text-orange-600 font-mono">
+                  <span className={`text-xs font-mono ml-2 ${
+                    index === selectedSuggestion ? 'text-blue-200' : 'text-gray-500'
+                  }`}>
                     {suggestion.detail}
                   </span>
                 )}
               </div>
               {suggestion.documentation && (
-                <div className="text-xs text-gray-600 mt-1">
+                <div className={`text-xs mt-1 ${
+                  index === selectedSuggestion ? 'text-blue-100' : 'text-gray-600'
+                }`}>
                   {suggestion.documentation}
                 </div>
               )}
