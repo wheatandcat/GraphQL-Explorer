@@ -27,10 +27,12 @@ Preferred communication style: Simple, everyday language.
 - **December 12, 2024**: Implemented GraphQL schema documentation viewer
   - Introspection query support to fetch GraphQL schema from any endpoint
   - Documentation panel similar to Altair GraphQL Client's Docs feature
+  - Full-screen right-side drawer for better documentation visibility
   - Displays root types (Query, Mutation, Subscription) and user-defined types
   - Expandable type definitions showing fields, descriptions, and type information
   - Support for Object types, Enums, Input types with proper syntax highlighting
   - Color-coded field names, types, and descriptions for better readability
+  - Clickable root type names to navigate and highlight types in the type list
 
 ## System Architecture
 

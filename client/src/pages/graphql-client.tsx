@@ -122,6 +122,7 @@ export default function GraphQLClientPage() {
   const [showDocs, setShowDocs] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
+  const [selectedType, setSelectedType] = useState<GraphQLType | null>(null);
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
@@ -573,6 +574,8 @@ export default function GraphQLClientPage() {
     return type.name || 'Unknown';
   }, []);
 
+
+
   // Get user-defined types (filter out built-in GraphQL types)
   const getUserDefinedTypes = useCallback((types: GraphQLType[]) => {
     return types.filter(type => 
@@ -580,6 +583,32 @@ export default function GraphQLClientPage() {
       !['String', 'Int', 'Float', 'Boolean', 'ID'].includes(type.name || '')
     );
   }, []);
+
+  // Find type by name in schema
+  const findTypeByName = useCallback((typeName: string): GraphQLType | null => {
+    if (!schema) return null;
+    return schema.types.find(type => type.name === typeName) || null;
+  }, [schema]);
+
+  // Handle clicking on a type name
+  const handleTypeClick = useCallback((typeName: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    const type = findTypeByName(typeName);
+    if (type) {
+      setSelectedType(type);
+      setExpandedTypes(prev => new Set([...prev, typeName]));
+      
+      // Scroll to the type in the types list
+      setTimeout(() => {
+        const element = document.getElementById(`type-${typeName}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    }
+  }, [findTypeByName]);
 
   // Format timestamp for display
   const formatTimestamp = useCallback((timestamp: number): string => {
@@ -971,7 +1000,10 @@ export default function GraphQLClientPage() {
               {schema.queryType && (
                 <div className="mb-6">
                   <h4 className="text-base font-semibold text-gray-800 mb-3">Query</h4>
-                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                  <div 
+                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
+                    onClick={() => handleTypeClick(schema.queryType!.name)}
+                  >
                     {schema.queryType.name}
                   </div>
                 </div>
@@ -980,7 +1012,10 @@ export default function GraphQLClientPage() {
               {schema.mutationType && (
                 <div className="mb-6">
                   <h4 className="text-base font-semibold text-gray-800 mb-3">Mutation</h4>
-                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                  <div 
+                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
+                    onClick={() => handleTypeClick(schema.mutationType!.name)}
+                  >
                     {schema.mutationType.name}
                   </div>
                 </div>
@@ -989,7 +1024,10 @@ export default function GraphQLClientPage() {
               {schema.subscriptionType && (
                 <div className="mb-6">
                   <h4 className="text-base font-semibold text-gray-800 mb-3">Subscription</h4>
-                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                  <div 
+                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
+                    onClick={() => handleTypeClick(schema.subscriptionType!.name)}
+                  >
                     {schema.subscriptionType.name}
                   </div>
                 </div>
@@ -1000,13 +1038,17 @@ export default function GraphQLClientPage() {
                 <h4 className="text-base font-semibold text-gray-800 mb-3">Types</h4>
                 <div className="space-y-3">
                   {getUserDefinedTypes(schema.types).map((type) => (
-                    <Collapsible
-                      key={type.name}
-                      open={expandedTypes.has(type.name!)}
-                      onOpenChange={() => toggleTypeExpansion(type.name!)}
-                    >
+                    <div key={type.name} id={`type-${type.name}`}>
+                      <Collapsible
+                        open={expandedTypes.has(type.name!)}
+                        onOpenChange={() => toggleTypeExpansion(type.name!)}
+                      >
                       <CollapsibleTrigger className="flex items-center w-full text-left">
-                        <div className="flex items-center text-sm text-blue-600 hover:underline">
+                        <div className={`flex items-center text-sm hover:underline ${
+                          selectedType?.name === type.name 
+                            ? 'text-blue-800 bg-blue-100' 
+                            : 'text-blue-600'
+                        } hover:bg-blue-50 p-1 rounded`}>
                           {expandedTypes.has(type.name!) ? (
                             <ChevronDown className="w-4 h-4 mr-2" />
                           ) : (
@@ -1090,6 +1132,7 @@ export default function GraphQLClientPage() {
                         )}
                       </CollapsibleContent>
                     </Collapsible>
+                    </div>
                   ))}
                 </div>
               </div>
