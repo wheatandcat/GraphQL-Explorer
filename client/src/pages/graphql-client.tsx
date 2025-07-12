@@ -28,20 +28,17 @@ export default function GraphQLClientPage() {
   const { toast } = useToast();
   
   // State
-  const [endpoint, setEndpoint] = useState('https://api.spacex.land/graphql');
+  const [endpoint, setEndpoint] = useState('https://countries.trevorblades.com/');
   const [headers, setHeaders] = useState<Header[]>([
-    { key: 'Authorization', value: 'Bearer eyJ0eXAiOiJKV1Q...' }
+    { key: 'Content-Type', value: 'application/json' }
   ]);
-  const [variables, setVariables] = useState('{\n  "limit": 10,\n  "offset": 0\n}');
-  const [query, setQuery] = useState(`query GetLaunches($limit: Int!, $offset: Int!) {
-  launches(limit: $limit, offset: $offset) {
-    id
-    mission_name
-    launch_date_local
-    rocket {
-      rocket_name
-    }
-    launch_success
+  const [variables, setVariables] = useState('{}');
+  const [query, setQuery] = useState(`query {
+  countries {
+    code
+    name
+    capital
+    currency
   }
 }`);
   const [response, setResponse] = useState('');
@@ -50,8 +47,6 @@ export default function GraphQLClientPage() {
   const [responseTime, setResponseTime] = useState(0);
   const [responseSize, setResponseSize] = useState('0 B');
   const [responseStatus, setResponseStatus] = useState({ status: 0, statusText: '' });
-
-  const client = new GraphQLClient(endpoint);
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
@@ -87,9 +82,7 @@ export default function GraphQLClientPage() {
         }
       });
       
-      client.setEndpoint(endpoint);
-      client.setHeaders(headersObj);
-      
+      const client = new GraphQLClient(endpoint, headersObj);
       const isConnected = await client.testConnection();
       
       if (isConnected) {
@@ -157,8 +150,7 @@ export default function GraphQLClientPage() {
         }
       }
 
-      client.setEndpoint(endpoint);
-      client.setHeaders(headersObj);
+      const client = new GraphQLClient(endpoint, headersObj);
 
       const result = await client.execute({
         query,
