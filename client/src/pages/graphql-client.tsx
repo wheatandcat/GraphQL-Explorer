@@ -8,9 +8,6 @@ import { GraphQLClient, RequestHeaders } from '@/lib/graphql-client';
 import { MonacoEditor } from '@/components/monaco-editor';
 import { 
   Copy, 
-  Download, 
-  Settings, 
-  HelpCircle, 
   Play, 
   Plus, 
   X, 
@@ -506,17 +503,7 @@ export default function GraphQLClientPage() {
     }
   }, [toast]);
 
-  const downloadResponse = useCallback(() => {
-    const blob = new Blob([response], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'graphql-response.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [response]);
+
 
   // Resize handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -861,14 +848,7 @@ export default function GraphQLClientPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4 mr-1" />
-                Settings
-              </Button>
-              <Button variant="ghost" size="sm">
-                <HelpCircle className="w-4 h-4 mr-1" />
-                Help
-              </Button>
+              {/* Header buttons removed as requested */}
             </div>
           </div>
         </div>
@@ -1121,16 +1101,6 @@ export default function GraphQLClientPage() {
                 >
                   <Copy className="w-3 h-3 mr-1" />
                   Copy
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadResponse}
-                  className="text-xs"
-                  disabled={!response}
-                >
-                  <Download className="w-3 h-3 mr-1" />
-                  Download
                 </Button>
               </div>
             </div>
