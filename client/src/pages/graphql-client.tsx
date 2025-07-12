@@ -21,10 +21,13 @@ import {
   Clock,
   BookOpen,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  ChevronLeft,
+  Search
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface Header {
   key: string;
@@ -123,6 +126,10 @@ export default function GraphQLClientPage() {
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState<GraphQLType | null>(null);
+  
+  // Panel state
+  const [showVariables, setShowVariables] = useState(false);
+  const [showHeaders, setShowHeaders] = useState(false);
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
@@ -988,8 +995,24 @@ export default function GraphQLClientPage() {
       {/* Documentation Panel - Full Screen Right Side Drawer */}
       {showDocs && schema && (
         <div className="fixed top-0 right-0 w-1/2 h-screen bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-            <h3 className="text-lg font-semibold text-gray-800">Documentation</h3>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+            <div className="flex items-center space-x-3">
+              {selectedType ? (
+                <button
+                  onClick={() => setSelectedType(null)}
+                  className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  <span>Schema</span>
+                </button>
+              ) : (
+                <span className="text-gray-600 text-sm">Documentation Explorer</span>
+              )}
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center">
+              {selectedType ? selectedType.name : 'Documentation Explorer'}
+            </h1>
             <Button
               variant="ghost"
               size="sm"
@@ -999,153 +1022,232 @@ export default function GraphQLClientPage() {
               <X className="w-4 h-4" />
             </Button>
           </div>
+
+          {/* Search Bar */}
+          <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder={selectedType ? `Search ${selectedType.name}...` : "Search Schema..."}
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
           
           <ScrollArea className="flex-1">
             <div className="p-4">
-              {/* Root Types */}
-              {schema.queryType && (
-                <div className="mb-6">
-                  <h4 className="text-base font-semibold text-gray-800 mb-3">Query</h4>
-                  <div 
-                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
-                    onClick={() => handleTypeClick(schema.queryType!.name)}
-                  >
-                    {schema.queryType.name}
-                  </div>
-                </div>
-              )}
-
-              {schema.mutationType && (
-                <div className="mb-6">
-                  <h4 className="text-base font-semibold text-gray-800 mb-3">Mutation</h4>
-                  <div 
-                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
-                    onClick={() => handleTypeClick(schema.mutationType!.name)}
-                  >
-                    {schema.mutationType.name}
-                  </div>
-                </div>
-              )}
-
-              {schema.subscriptionType && (
-                <div className="mb-6">
-                  <h4 className="text-base font-semibold text-gray-800 mb-3">Subscription</h4>
-                  <div 
-                    className="text-sm text-blue-600 cursor-pointer hover:underline font-mono hover:bg-blue-50 p-1 rounded"
-                    onClick={() => handleTypeClick(schema.subscriptionType!.name)}
-                  >
-                    {schema.subscriptionType.name}
-                  </div>
-                </div>
-              )}
-
-              {/* All Types */}
-              <div className="mb-6">
-                <h4 className="text-base font-semibold text-gray-800 mb-3">Types</h4>
-                <div className="space-y-3">
-                  {getUserDefinedTypes(schema.types).map((type) => (
-                    <div key={type.name} id={`type-${type.name}`}>
-                      <Collapsible
-                        open={expandedTypes.has(type.name!)}
-                        onOpenChange={() => toggleTypeExpansion(type.name!)}
-                      >
-                      <CollapsibleTrigger className="flex items-center w-full text-left">
-                        <div className={`flex items-center text-sm hover:underline ${
-                          selectedType?.name === type.name 
-                            ? 'text-blue-800 bg-blue-100' 
-                            : 'text-blue-600'
-                        } hover:bg-blue-50 p-1 rounded`}>
-                          {expandedTypes.has(type.name!) ? (
-                            <ChevronDown className="w-4 h-4 mr-2" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 mr-2" />
-                          )}
-                          <span className="font-bold font-mono">{type.name}</span>
-                          <span className="ml-2 text-gray-500 text-xs">({type.kind})</span>
-                        </div>
-                      </CollapsibleTrigger>
-                      
-                      <CollapsibleContent className="ml-6 mt-2">
-                        {type.description && (
-                          <p className="text-sm text-gray-600 mb-3 italic bg-gray-50 p-2 rounded">
-                            {type.description}
-                          </p>
-                        )}
-                        
-                        {/* Fields */}
-                        {type.fields && type.fields.length > 0 && (
-                          <div className="mb-4">
-                            <div className="text-sm font-semibold text-gray-700 mb-2">Fields:</div>
-                            <div className="space-y-2">
-                              {type.fields.map((field) => (
-                                <div key={field.name} className="text-sm border-l-2 border-blue-200 pl-3">
-                                  <div className="flex items-baseline">
-                                    <span className="font-mono text-purple-600 font-medium">{field.name}</span>
-                                    <span className="text-gray-500 mx-1">:</span>
-                                    <span className="font-mono text-blue-600 font-medium">{renderType(field.type)}</span>
-                                  </div>
-                                  {field.description && (
-                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                      {field.description}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Enum Values */}
-                        {type.enumValues && type.enumValues.length > 0 && (
-                          <div className="mb-4">
-                            <div className="text-sm font-semibold text-gray-700 mb-2">Values:</div>
-                            <div className="space-y-2">
-                              {type.enumValues.map((enumValue) => (
-                                <div key={enumValue.name} className="text-sm border-l-2 border-green-200 pl-3">
-                                  <span className="font-mono text-green-600 font-medium">{enumValue.name}</span>
-                                  {enumValue.description && (
-                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                      {enumValue.description}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Input Fields */}
-                        {type.inputFields && type.inputFields.length > 0 && (
-                          <div className="mb-4">
-                            <div className="text-sm font-semibold text-gray-700 mb-2">Input Fields:</div>
-                            <div className="space-y-2">
-                              {type.inputFields.map((inputField) => (
-                                <div key={inputField.name} className="text-sm border-l-2 border-orange-200 pl-3">
-                                  <div className="flex items-baseline">
-                                    <span className="font-mono text-purple-600 font-medium">{inputField.name}</span>
-                                    <span className="text-gray-500 mx-1">:</span>
-                                    <span className="font-mono text-blue-600 font-medium">{renderType(inputField.type)}</span>
-                                  </div>
-                                  {inputField.description && (
-                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                      {inputField.description}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </CollapsibleContent>
-                    </Collapsible>
+              {selectedType ? (
+                // Selected Type Details View
+                <div>
+                  {/* Type Description */}
+                  {selectedType.description && (
+                    <div className="mb-6 p-4 bg-gray-50 rounded-md">
+                      <p className="text-sm text-gray-700">{selectedType.description}</p>
                     </div>
-                  ))}
+                  )}
+
+                  {/* IMPLEMENTS Section */}
+                  {selectedType.kind === 'OBJECT' && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                        IMPLEMENTS
+                      </h3>
+                      <div className="text-sm text-orange-600 font-mono">Node</div>
+                    </div>
+                  )}
+
+                  {/* FIELDS Section */}
+                  {selectedType.fields && selectedType.fields.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                        FIELDS
+                      </h3>
+                      <div className="space-y-4">
+                        {selectedType.fields.map((field) => (
+                          <div key={field.name} className="border-b border-gray-100 pb-4 last:border-b-0">
+                            <div className="flex items-baseline mb-1">
+                              <span className="text-blue-600 font-mono text-sm mr-1">{field.name}</span>
+                              {field.args && field.args.length > 0 && (
+                                <span className="text-gray-500 text-sm">
+                                  ({field.args.map(arg => `${arg.name}: ${renderType(arg.type)}`).join(', ')})
+                                </span>
+                              )}
+                              <span className="text-gray-500 text-sm mx-1">:</span>
+                              <span className="text-orange-600 font-mono text-sm font-semibold">
+                                {renderType(field.type)}
+                              </span>
+                            </div>
+                            {field.description && (
+                              <p className="text-sm text-gray-600 ml-0">{field.description}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enum Values */}
+                  {selectedType.enumValues && selectedType.enumValues.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                        VALUES
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedType.enumValues.map((enumValue) => (
+                          <div key={enumValue.name} className="border-b border-gray-100 pb-2 last:border-b-0">
+                            <div className="text-orange-600 font-mono text-sm font-semibold">
+                              {enumValue.name}
+                            </div>
+                            {enumValue.description && (
+                              <p className="text-sm text-gray-600 mt-1">{enumValue.description}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                // Schema Overview
+                <div>
+                  {/* Schema Description */}
+                  <div className="mb-6 p-4 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-700">
+                      A GraphQL schema provides a root type for each kind of operation.
+                    </p>
+                  </div>
+
+                  {/* ROOT TYPES Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                      ROOT TYPES
+                    </h3>
+                    <div className="space-y-2">
+                      {schema.queryType && (
+                        <div 
+                          className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
+                          onClick={() => handleTypeClick(schema.queryType!.name)}
+                        >
+                          <span className="text-red-600 text-sm mr-2">query:</span>
+                          <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
+                            {schema.queryType.name}
+                          </span>
+                        </div>
+                      )}
+                      {schema.mutationType && (
+                        <div 
+                          className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
+                          onClick={() => handleTypeClick(schema.mutationType!.name)}
+                        >
+                          <span className="text-red-600 text-sm mr-2">mutation:</span>
+                          <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
+                            {schema.mutationType.name}
+                          </span>
+                        </div>
+                      )}
+                      {schema.subscriptionType && (
+                        <div 
+                          className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
+                          onClick={() => handleTypeClick(schema.subscriptionType!.name)}
+                        >
+                          <span className="text-red-600 text-sm mr-2">subscription:</span>
+                          <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
+                            {schema.subscriptionType.name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ALL TYPES Section */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                      ALL TYPES
+                    </h3>
+                    <div className="space-y-2">
+                      {getUserDefinedTypes(schema.types).map((type) => (
+                        <div 
+                          key={type.name}
+                          className="cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
+                          onClick={() => handleTypeClick(type.name!)}
+                        >
+                          <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
+                            {type.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </div>
       )}
+
+      {/* Variables Panel */}
+      <Sheet open={showVariables} onOpenChange={setShowVariables}>
+        <SheetContent side="bottom" className="h-1/2">
+          <SheetHeader>
+            <SheetTitle>Query Variables</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 h-full">
+            <MonacoEditor
+              value={variables}
+              onChange={setVariables}
+              language="json"
+              height="100%"
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Headers Panel */}
+      <Sheet open={showHeaders} onOpenChange={setShowHeaders}>
+        <SheetContent side="bottom" className="h-1/2">
+          <SheetHeader>
+            <SheetTitle>Request Headers</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            {headers.map((header, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Header name"
+                  value={header.key}
+                  onChange={(e) => updateHeader(index, 'key', e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <input
+                  type="text"
+                  placeholder="Header value"
+                  value={header.value}
+                  onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeHeader(index)}
+                  className="p-2"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addHeader}
+              className="w-full"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Header
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

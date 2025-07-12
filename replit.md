@@ -33,6 +33,7 @@ Preferred communication style: Simple, everyday language.
   - Support for Object types, Enums, Input types with proper syntax highlighting
   - Color-coded field names, types, and descriptions for better readability
   - Clickable root type names to navigate and highlight types in the type list
+  - Enhanced with GitHub-style documentation UI including breadcrumb navigation and search bar
 
 ## System Architecture
 
