@@ -848,7 +848,7 @@ export default function GraphQLClientPage() {
 
               {/* Documentation Panel */}
               {showDocs && schema && (
-                <div className="absolute top-0 left-0 w-80 h-full bg-white border-r border-gray-200 shadow-lg z-10 flex flex-col">
+                <div className="absolute top-0 left-0 w-96 h-full bg-white border-r border-gray-200 shadow-lg z-10 flex flex-col">
                   <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
                     <h3 className="text-sm font-medium text-gray-700">Documentation</h3>
                     <Button
