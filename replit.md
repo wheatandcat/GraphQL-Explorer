@@ -10,6 +10,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+- **July 12, 2025**: Implemented multiple GraphQL endpoints management system
+  - Added endpoint manager with add/edit/delete functionality
+  - Endpoint selector dropdown for easy switching
+  - Headers and query history now saved per endpoint
+  - Persistent storage for all endpoint configurations
+  - Current endpoint highlighting and last-used tracking
+  - Fixed endpoint switching to properly update URL input field
+
 - **July 12, 2025**: Completed GraphQL autocomplete/suggestion system
   - Automatic schema loading when endpoint is set
   - Real-time suggestions for GraphQL fields and operations

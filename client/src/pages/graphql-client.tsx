@@ -219,9 +219,22 @@ export default function GraphQLClientPage() {
     const targetEndpoint = endpoints.find(ep => ep.id === endpointId);
     if (targetEndpoint) {
       setCurrentEndpointId(endpointId);
-      updateCurrentEndpoint({ lastUsed: Date.now() });
+      setEndpoint(targetEndpoint.url);
+      setHeaders(targetEndpoint.headers);
+      
+      // Update last used timestamp for the target endpoint
+      setEndpoints(prev => prev.map(ep => 
+        ep.id === endpointId 
+          ? { ...ep, lastUsed: Date.now() }
+          : ep
+      ));
+      
+      toast({
+        title: 'Endpoint Switched',
+        description: `Switched to "${targetEndpoint.name}"`,
+      });
     }
-  }, [endpoints, updateCurrentEndpoint]);
+  }, [endpoints, toast]);
 
   // Add new endpoint
   const addEndpoint = useCallback((name: string, url: string) => {
