@@ -18,8 +18,13 @@ import {
   Plug,
   Loader2,
   History,
-  Clock
+  Clock,
+  BookOpen,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Header {
   key: string;
@@ -33,6 +38,42 @@ interface QueryHistory {
   endpoint: string;
   timestamp: number;
   name?: string;
+}
+
+interface GraphQLType {
+  name: string;
+  kind: string;
+  description?: string;
+  fields?: GraphQLField[];
+  enumValues?: GraphQLEnumValue[];
+  inputFields?: GraphQLInputField[];
+  ofType?: GraphQLType;
+}
+
+interface GraphQLField {
+  name: string;
+  description?: string;
+  type: GraphQLType;
+  args?: GraphQLInputField[];
+}
+
+interface GraphQLInputField {
+  name: string;
+  description?: string;
+  type: GraphQLType;
+  defaultValue?: any;
+}
+
+interface GraphQLEnumValue {
+  name: string;
+  description?: string;
+}
+
+interface GraphQLSchema {
+  queryType?: GraphQLType;
+  mutationType?: GraphQLType;
+  subscriptionType?: GraphQLType;
+  types: GraphQLType[];
 }
 
 export default function GraphQLClientPage() {
@@ -75,6 +116,12 @@ export default function GraphQLClientPage() {
     return saved ? JSON.parse(saved) : [];
   });
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Documentation state
+  const [schema, setSchema] = useState<GraphQLSchema | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
+  const [loadingSchema, setLoadingSchema] = useState(false);
+  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
@@ -367,6 +414,173 @@ export default function GraphQLClientPage() {
     });
   }, [toast]);
 
+  // Fetch GraphQL schema using introspection
+  const fetchSchema = useCallback(async () => {
+    if (!endpoint) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a GraphQL endpoint first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoadingSchema(true);
+    try {
+      const client = new GraphQLClient(endpoint);
+      
+      // Set headers for the introspection query
+      const headersObj: RequestHeaders = {};
+      headers.forEach(header => {
+        if (header.key && header.value) {
+          headersObj[header.key] = header.value;
+        }
+      });
+      client.setHeaders(headersObj);
+
+      const introspectionQuery = `
+        query IntrospectionQuery {
+          __schema {
+            queryType { name }
+            mutationType { name }
+            subscriptionType { name }
+            types {
+              ...FullType
+            }
+          }
+        }
+
+        fragment FullType on __Type {
+          kind
+          name
+          description
+          fields(includeDeprecated: true) {
+            name
+            description
+            args {
+              ...InputValue
+            }
+            type {
+              ...TypeRef
+            }
+          }
+          inputFields {
+            ...InputValue
+          }
+          interfaces {
+            ...TypeRef
+          }
+          enumValues(includeDeprecated: true) {
+            name
+            description
+          }
+          possibleTypes {
+            ...TypeRef
+          }
+        }
+
+        fragment InputValue on __InputValue {
+          name
+          description
+          type { ...TypeRef }
+          defaultValue
+        }
+
+        fragment TypeRef on __Type {
+          kind
+          name
+          ofType {
+            kind
+            name
+            ofType {
+              kind
+              name
+              ofType {
+                kind
+                name
+                ofType {
+                  kind
+                  name
+                  ofType {
+                    kind
+                    name
+                    ofType {
+                      kind
+                      name
+                      ofType {
+                        kind
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+
+      const result = await client.execute({
+        query: introspectionQuery,
+      });
+
+      if (result.response.errors) {
+        throw new Error(result.response.errors[0]?.message || 'Failed to fetch schema');
+      }
+
+      if (result.response.data?.__schema) {
+        setSchema(result.response.data.__schema);
+        setShowDocs(true);
+        toast({
+          title: 'Schema Loaded',
+          description: 'GraphQL schema documentation is now available',
+        });
+      } else {
+        throw new Error('Invalid schema response');
+      }
+    } catch (error) {
+      toast({
+        title: 'Schema Error',
+        description: error instanceof Error ? error.message : 'Failed to load schema',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingSchema(false);
+    }
+  }, [endpoint, headers, toast]);
+
+  // Toggle type expansion in docs
+  const toggleTypeExpansion = useCallback((typeName: string) => {
+    setExpandedTypes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(typeName)) {
+        newSet.delete(typeName);
+      } else {
+        newSet.add(typeName);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // Render GraphQL type string
+  const renderType = useCallback((type: GraphQLType): string => {
+    if (type.kind === 'NON_NULL') {
+      return renderType(type.ofType!) + '!';
+    }
+    if (type.kind === 'LIST') {
+      return '[' + renderType(type.ofType!) + ']';
+    }
+    return type.name || 'Unknown';
+  }, []);
+
+  // Get user-defined types (filter out built-in GraphQL types)
+  const getUserDefinedTypes = useCallback((types: GraphQLType[]) => {
+    return types.filter(type => 
+      !type.name?.startsWith('__') && 
+      !['String', 'Int', 'Float', 'Boolean', 'ID'].includes(type.name || '')
+    );
+  }, []);
+
   // Format timestamp for display
   const formatTimestamp = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
@@ -539,6 +753,20 @@ export default function GraphQLClientPage() {
                     <History className="w-3 h-3 mr-1" />
                     History ({queryHistory.length})
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchSchema}
+                    disabled={loadingSchema}
+                    className="text-xs"
+                  >
+                    {loadingSchema ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <BookOpen className="w-3 h-3 mr-1" />
+                    )}
+                    Docs
+                  </Button>
                 </div>
               </div>
               <Button onClick={executeQuery} disabled={loading} className="bg-green-600 hover:bg-green-700">
@@ -553,9 +781,9 @@ export default function GraphQLClientPage() {
 
             {/* Query Editor */}
             <div className="flex-1 relative">
+              {/* History Panel */}
               {showHistory && (
                 <div className="absolute top-0 right-0 w-80 h-full bg-white border-l border-gray-200 shadow-lg z-10 flex flex-col">
-                  {/* History Header */}
                   <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
                     <h3 className="text-sm font-medium text-gray-700">Query History</h3>
                     <div className="flex items-center space-x-2">
@@ -578,8 +806,6 @@ export default function GraphQLClientPage() {
                       </Button>
                     </div>
                   </div>
-
-                  {/* History List */}
                   <div className="flex-1 overflow-y-auto">
                     {queryHistory.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-gray-500">
@@ -619,6 +845,151 @@ export default function GraphQLClientPage() {
                   </div>
                 </div>
               )}
+
+              {/* Documentation Panel */}
+              {showDocs && schema && (
+                <div className="absolute top-0 left-0 w-80 h-full bg-white border-r border-gray-200 shadow-lg z-10 flex flex-col">
+                  <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                    <h3 className="text-sm font-medium text-gray-700">Documentation</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowDocs(false)}
+                      className="p-1"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  
+                  <ScrollArea className="flex-1">
+                    <div className="p-3">
+                      {/* Root Types */}
+                      {schema.queryType && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-2">Query</h4>
+                          <div className="text-xs text-blue-600 cursor-pointer hover:underline">
+                            {schema.queryType.name}
+                          </div>
+                        </div>
+                      )}
+
+                      {schema.mutationType && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-2">Mutation</h4>
+                          <div className="text-xs text-blue-600 cursor-pointer hover:underline">
+                            {schema.mutationType.name}
+                          </div>
+                        </div>
+                      )}
+
+                      {schema.subscriptionType && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-2">Subscription</h4>
+                          <div className="text-xs text-blue-600 cursor-pointer hover:underline">
+                            {schema.subscriptionType.name}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* All Types */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-800 mb-2">Types</h4>
+                        <div className="space-y-2">
+                          {getUserDefinedTypes(schema.types).map((type) => (
+                            <Collapsible
+                              key={type.name}
+                              open={expandedTypes.has(type.name!)}
+                              onOpenChange={() => toggleTypeExpansion(type.name!)}
+                            >
+                              <CollapsibleTrigger className="flex items-center w-full text-left">
+                                <div className="flex items-center text-xs text-blue-600 hover:underline">
+                                  {expandedTypes.has(type.name!) ? (
+                                    <ChevronDown className="w-3 h-3 mr-1" />
+                                  ) : (
+                                    <ChevronRight className="w-3 h-3 mr-1" />
+                                  )}
+                                  <span className="font-medium">{type.name}</span>
+                                  <span className="ml-1 text-gray-500">({type.kind})</span>
+                                </div>
+                              </CollapsibleTrigger>
+                              
+                              <CollapsibleContent className="ml-4 mt-1">
+                                {type.description && (
+                                  <p className="text-xs text-gray-600 mb-2 italic">
+                                    {type.description}
+                                  </p>
+                                )}
+                                
+                                {/* Fields */}
+                                {type.fields && type.fields.length > 0 && (
+                                  <div className="mb-2">
+                                    <div className="text-xs font-medium text-gray-700 mb-1">Fields:</div>
+                                    <div className="space-y-1">
+                                      {type.fields.map((field) => (
+                                        <div key={field.name} className="text-xs">
+                                          <span className="font-mono text-purple-600">{field.name}</span>
+                                          <span className="text-gray-500">: </span>
+                                          <span className="font-mono text-blue-600">{renderType(field.type)}</span>
+                                          {field.description && (
+                                            <div className="text-gray-500 italic text-xs mt-1">
+                                              {field.description}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Enum Values */}
+                                {type.enumValues && type.enumValues.length > 0 && (
+                                  <div className="mb-2">
+                                    <div className="text-xs font-medium text-gray-700 mb-1">Values:</div>
+                                    <div className="space-y-1">
+                                      {type.enumValues.map((enumValue) => (
+                                        <div key={enumValue.name} className="text-xs">
+                                          <span className="font-mono text-green-600">{enumValue.name}</span>
+                                          {enumValue.description && (
+                                            <div className="text-gray-500 italic text-xs">
+                                              {enumValue.description}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Input Fields */}
+                                {type.inputFields && type.inputFields.length > 0 && (
+                                  <div className="mb-2">
+                                    <div className="text-xs font-medium text-gray-700 mb-1">Input Fields:</div>
+                                    <div className="space-y-1">
+                                      {type.inputFields.map((inputField) => (
+                                        <div key={inputField.name} className="text-xs">
+                                          <span className="font-mono text-purple-600">{inputField.name}</span>
+                                          <span className="text-gray-500">: </span>
+                                          <span className="font-mono text-blue-600">{renderType(inputField.type)}</span>
+                                          {inputField.description && (
+                                            <div className="text-gray-500 italic text-xs mt-1">
+                                              {inputField.description}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </CollapsibleContent>
+                            </Collapsible>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+
               <MonacoEditor
                 value={query}
                 onChange={setQuery}

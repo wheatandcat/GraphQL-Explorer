@@ -24,6 +24,14 @@ Preferred communication style: Simple, everyday language.
   - LocalStorage persistence for history data
   - Endpoint display removed from history panel for cleaner UI
 
+- **December 12, 2024**: Implemented GraphQL schema documentation viewer
+  - Introspection query support to fetch GraphQL schema from any endpoint
+  - Documentation panel similar to Altair GraphQL Client's Docs feature
+  - Displays root types (Query, Mutation, Subscription) and user-defined types
+  - Expandable type definitions showing fields, descriptions, and type information
+  - Support for Object types, Enums, Input types with proper syntax highlighting
+  - Color-coded field names, types, and descriptions for better readability
+
 ## System Architecture
 
 ### Frontend Architecture
