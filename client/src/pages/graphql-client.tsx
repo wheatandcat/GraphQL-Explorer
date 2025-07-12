@@ -884,7 +884,12 @@ export default function GraphQLClientPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={fetchSchema}
+                    onClick={() => {
+                      if (!schema && !loadingSchema) {
+                        fetchSchema();
+                      }
+                      setShowDocs(!showDocs);
+                    }}
                     disabled={loadingSchema}
                     className="text-xs"
                   >
