@@ -16,6 +16,13 @@ Preferred communication style: Simple, everyday language.
   - Query editor height adjustable between 20%-80% of available space
   - Resize bar with visual feedback on hover
 
+- **December 12, 2024**: Added query execution history feature
+  - Query and variables automatically saved to history on successful execution
+  - History panel accessible from Query Editor header
+  - Click any history item to restore query, variables, and endpoint
+  - Stores up to 50 recent queries with timestamps and query names
+  - LocalStorage persistence for history data
+
 ## System Architecture
 
 ### Frontend Architecture

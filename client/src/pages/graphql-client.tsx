@@ -16,12 +16,23 @@ import {
   X, 
   Code, 
   Plug,
-  Loader2
+  Loader2,
+  History,
+  Clock
 } from 'lucide-react';
 
 interface Header {
   key: string;
   value: string;
+}
+
+interface QueryHistory {
+  id: string;
+  query: string;
+  variables: string;
+  endpoint: string;
+  timestamp: number;
+  name?: string;
 }
 
 export default function GraphQLClientPage() {
@@ -58,6 +69,13 @@ export default function GraphQLClientPage() {
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Query history state
+  const [queryHistory, setQueryHistory] = useState<QueryHistory[]>(() => {
+    const saved = localStorage.getItem('graphql-client-history');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showHistory, setShowHistory] = useState(false);
+
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
   }, []);
@@ -72,6 +90,33 @@ export default function GraphQLClientPage() {
         i === index ? { ...header, [field]: value } : header
       )
     );
+  }, []);
+
+  // Add to history after successful query execution
+  const addToHistory = useCallback((query: string, variables: string, endpoint: string) => {
+    const historyItem: QueryHistory = {
+      id: Date.now().toString(),
+      query,
+      variables,
+      endpoint,
+      timestamp: Date.now(),
+      name: extractQueryName(query) || 'Untitled Query'
+    };
+
+    setQueryHistory(prev => {
+      // Remove duplicate if exists
+      const filtered = prev.filter(item => 
+        !(item.query === query && item.variables === variables && item.endpoint === endpoint)
+      );
+      // Add new item at the beginning and keep only last 50
+      return [historyItem, ...filtered].slice(0, 50);
+    });
+  }, []);
+
+  // Extract query name from GraphQL query
+  const extractQueryName = useCallback((query: string): string | null => {
+    const match = query.match(/(?:query|mutation|subscription)\s+(\w+)/);
+    return match ? match[1] : null;
   }, []);
 
   const testConnection = useCallback(async () => {
@@ -173,6 +218,11 @@ export default function GraphQLClientPage() {
       setResponseSize(result.responseSize);
       setResponseStatus({ status: result.status, statusText: result.statusText });
 
+      // Add to history on successful execution (even with GraphQL errors)
+      if (result.status >= 200 && result.status < 300) {
+        addToHistory(query, variables, endpoint);
+      }
+
       if (result.response.errors) {
         toast({
           title: 'GraphQL Errors',
@@ -192,7 +242,7 @@ export default function GraphQLClientPage() {
     } finally {
       setLoading(false);
     }
-  }, [endpoint, headers, variables, query, toast]);
+  }, [endpoint, headers, variables, query, toast, addToHistory]);
 
   const formatQuery = useCallback(() => {
     try {
@@ -290,6 +340,48 @@ export default function GraphQLClientPage() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
+
+  // Save query history to localStorage
+  useEffect(() => {
+    localStorage.setItem('graphql-client-history', JSON.stringify(queryHistory));
+  }, [queryHistory]);
+
+  // Load query from history
+  const loadFromHistory = useCallback((historyItem: QueryHistory) => {
+    setQuery(historyItem.query);
+    setVariables(historyItem.variables);
+    setEndpoint(historyItem.endpoint);
+    setShowHistory(false);
+    toast({
+      title: 'History Loaded',
+      description: `Loaded "${historyItem.name}" from history`,
+    });
+  }, [toast]);
+
+  // Clear history
+  const clearHistory = useCallback(() => {
+    setQueryHistory([]);
+    toast({
+      title: 'History Cleared',
+      description: 'All query history has been cleared',
+    });
+  }, [toast]);
+
+  // Format timestamp for display
+  const formatTimestamp = useCallback((timestamp: number): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      const minutes = Math.floor(diffInHours * 60);
+      return `${minutes}m ago`;
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -438,6 +530,15 @@ export default function GraphQLClientPage() {
                     <Copy className="w-3 h-3 mr-1" />
                     Copy
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowHistory(!showHistory)}
+                    className="text-xs"
+                  >
+                    <History className="w-3 h-3 mr-1" />
+                    History ({queryHistory.length})
+                  </Button>
                 </div>
               </div>
               <Button onClick={executeQuery} disabled={loading} className="bg-green-600 hover:bg-green-700">
@@ -452,6 +553,75 @@ export default function GraphQLClientPage() {
 
             {/* Query Editor */}
             <div className="flex-1 relative">
+              {showHistory && (
+                <div className="absolute top-0 right-0 w-80 h-full bg-white border-l border-gray-200 shadow-lg z-10 flex flex-col">
+                  {/* History Header */}
+                  <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
+                    <h3 className="text-sm font-medium text-gray-700">Query History</h3>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearHistory}
+                        className="text-xs text-red-600 hover:text-red-700"
+                        disabled={queryHistory.length === 0}
+                      >
+                        Clear All
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowHistory(false)}
+                        className="p-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* History List */}
+                  <div className="flex-1 overflow-y-auto">
+                    {queryHistory.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <Clock className="w-8 h-8 mb-2" />
+                        <p className="text-sm">No query history yet</p>
+                        <p className="text-xs text-gray-400">Execute queries to build history</p>
+                      </div>
+                    ) : (
+                      <div className="p-2 space-y-2">
+                        {queryHistory.map((item) => (
+                          <div
+                            key={item.id}
+                            onClick={() => loadFromHistory(item)}
+                            className="p-3 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-50 hover:border-blue-300 transition-colors"
+                          >
+                            <div className="flex items-start justify-between mb-1">
+                              <h4 className="text-xs font-medium text-gray-900 truncate flex-1">
+                                {item.name}
+                              </h4>
+                              <span className="text-xs text-gray-500 ml-2">
+                                {formatTimestamp(item.timestamp)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 mb-1 truncate">
+                              {item.endpoint}
+                            </div>
+                            <div className="text-xs text-gray-500 font-mono bg-gray-100 p-1 rounded truncate">
+                              {item.query.replace(/\s+/g, ' ').trim().substring(0, 60)}
+                              {item.query.length > 60 ? '...' : ''}
+                            </div>
+                            {item.variables && item.variables !== '{}' && (
+                              <div className="text-xs text-gray-400 mt-1">
+                                Has variables
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               <MonacoEditor
                 value={query}
                 onChange={setQuery}
