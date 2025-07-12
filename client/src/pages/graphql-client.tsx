@@ -846,154 +846,6 @@ export default function GraphQLClientPage() {
                 </div>
               )}
 
-              {/* Documentation Panel - Right Side Drawer */}
-              {showDocs && schema && (
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-white border-l border-gray-200 shadow-lg z-20 flex flex-col">
-                  <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-                    <h3 className="text-lg font-semibold text-gray-800">Documentation</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowDocs(false)}
-                      className="p-1"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <ScrollArea className="flex-1">
-                    <div className="p-4">
-                      {/* Root Types */}
-                      {schema.queryType && (
-                        <div className="mb-6">
-                          <h4 className="text-base font-semibold text-gray-800 mb-3">Query</h4>
-                          <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
-                            {schema.queryType.name}
-                          </div>
-                        </div>
-                      )}
-
-                      {schema.mutationType && (
-                        <div className="mb-6">
-                          <h4 className="text-base font-semibold text-gray-800 mb-3">Mutation</h4>
-                          <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
-                            {schema.mutationType.name}
-                          </div>
-                        </div>
-                      )}
-
-                      {schema.subscriptionType && (
-                        <div className="mb-6">
-                          <h4 className="text-base font-semibold text-gray-800 mb-3">Subscription</h4>
-                          <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
-                            {schema.subscriptionType.name}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* All Types */}
-                      <div className="mb-6">
-                        <h4 className="text-base font-semibold text-gray-800 mb-3">Types</h4>
-                        <div className="space-y-3">
-                          {getUserDefinedTypes(schema.types).map((type) => (
-                            <Collapsible
-                              key={type.name}
-                              open={expandedTypes.has(type.name!)}
-                              onOpenChange={() => toggleTypeExpansion(type.name!)}
-                            >
-                              <CollapsibleTrigger className="flex items-center w-full text-left">
-                                <div className="flex items-center text-sm text-blue-600 hover:underline">
-                                  {expandedTypes.has(type.name!) ? (
-                                    <ChevronDown className="w-4 h-4 mr-2" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4 mr-2" />
-                                  )}
-                                  <span className="font-bold font-mono">{type.name}</span>
-                                  <span className="ml-2 text-gray-500 text-xs">({type.kind})</span>
-                                </div>
-                              </CollapsibleTrigger>
-                              
-                              <CollapsibleContent className="ml-6 mt-2">
-                                {type.description && (
-                                  <p className="text-sm text-gray-600 mb-3 italic bg-gray-50 p-2 rounded">
-                                    {type.description}
-                                  </p>
-                                )}
-                                
-                                {/* Fields */}
-                                {type.fields && type.fields.length > 0 && (
-                                  <div className="mb-4">
-                                    <div className="text-sm font-semibold text-gray-700 mb-2">Fields:</div>
-                                    <div className="space-y-2">
-                                      {type.fields.map((field) => (
-                                        <div key={field.name} className="text-sm border-l-2 border-blue-200 pl-3">
-                                          <div className="flex items-baseline">
-                                            <span className="font-mono text-purple-600 font-medium">{field.name}</span>
-                                            <span className="text-gray-500 mx-1">:</span>
-                                            <span className="font-mono text-blue-600 font-medium">{renderType(field.type)}</span>
-                                          </div>
-                                          {field.description && (
-                                            <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                              {field.description}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Enum Values */}
-                                {type.enumValues && type.enumValues.length > 0 && (
-                                  <div className="mb-4">
-                                    <div className="text-sm font-semibold text-gray-700 mb-2">Values:</div>
-                                    <div className="space-y-2">
-                                      {type.enumValues.map((enumValue) => (
-                                        <div key={enumValue.name} className="text-sm border-l-2 border-green-200 pl-3">
-                                          <span className="font-mono text-green-600 font-medium">{enumValue.name}</span>
-                                          {enumValue.description && (
-                                            <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                              {enumValue.description}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Input Fields */}
-                                {type.inputFields && type.inputFields.length > 0 && (
-                                  <div className="mb-4">
-                                    <div className="text-sm font-semibold text-gray-700 mb-2">Input Fields:</div>
-                                    <div className="space-y-2">
-                                      {type.inputFields.map((inputField) => (
-                                        <div key={inputField.name} className="text-sm border-l-2 border-orange-200 pl-3">
-                                          <div className="flex items-baseline">
-                                            <span className="font-mono text-purple-600 font-medium">{inputField.name}</span>
-                                            <span className="text-gray-500 mx-1">:</span>
-                                            <span className="font-mono text-blue-600 font-medium">{renderType(inputField.type)}</span>
-                                          </div>
-                                          {inputField.description && (
-                                            <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
-                                              {inputField.description}
-                                            </div>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </CollapsibleContent>
-                            </Collapsible>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                </div>
-              )}
-
               <MonacoEditor
                 value={query}
                 onChange={setQuery}
@@ -1097,6 +949,154 @@ export default function GraphQLClientPage() {
           </div>
         </div>
       </div>
+
+      {/* Documentation Panel - Full Screen Right Side Drawer */}
+      {showDocs && schema && (
+        <div className="fixed top-0 right-0 w-1/2 h-screen bg-white border-l border-gray-200 shadow-xl z-50 flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-lg font-semibold text-gray-800">Documentation</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDocs(false)}
+              className="p-1"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              {/* Root Types */}
+              {schema.queryType && (
+                <div className="mb-6">
+                  <h4 className="text-base font-semibold text-gray-800 mb-3">Query</h4>
+                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                    {schema.queryType.name}
+                  </div>
+                </div>
+              )}
+
+              {schema.mutationType && (
+                <div className="mb-6">
+                  <h4 className="text-base font-semibold text-gray-800 mb-3">Mutation</h4>
+                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                    {schema.mutationType.name}
+                  </div>
+                </div>
+              )}
+
+              {schema.subscriptionType && (
+                <div className="mb-6">
+                  <h4 className="text-base font-semibold text-gray-800 mb-3">Subscription</h4>
+                  <div className="text-sm text-blue-600 cursor-pointer hover:underline font-mono">
+                    {schema.subscriptionType.name}
+                  </div>
+                </div>
+              )}
+
+              {/* All Types */}
+              <div className="mb-6">
+                <h4 className="text-base font-semibold text-gray-800 mb-3">Types</h4>
+                <div className="space-y-3">
+                  {getUserDefinedTypes(schema.types).map((type) => (
+                    <Collapsible
+                      key={type.name}
+                      open={expandedTypes.has(type.name!)}
+                      onOpenChange={() => toggleTypeExpansion(type.name!)}
+                    >
+                      <CollapsibleTrigger className="flex items-center w-full text-left">
+                        <div className="flex items-center text-sm text-blue-600 hover:underline">
+                          {expandedTypes.has(type.name!) ? (
+                            <ChevronDown className="w-4 h-4 mr-2" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 mr-2" />
+                          )}
+                          <span className="font-bold font-mono">{type.name}</span>
+                          <span className="ml-2 text-gray-500 text-xs">({type.kind})</span>
+                        </div>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="ml-6 mt-2">
+                        {type.description && (
+                          <p className="text-sm text-gray-600 mb-3 italic bg-gray-50 p-2 rounded">
+                            {type.description}
+                          </p>
+                        )}
+                        
+                        {/* Fields */}
+                        {type.fields && type.fields.length > 0 && (
+                          <div className="mb-4">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">Fields:</div>
+                            <div className="space-y-2">
+                              {type.fields.map((field) => (
+                                <div key={field.name} className="text-sm border-l-2 border-blue-200 pl-3">
+                                  <div className="flex items-baseline">
+                                    <span className="font-mono text-purple-600 font-medium">{field.name}</span>
+                                    <span className="text-gray-500 mx-1">:</span>
+                                    <span className="font-mono text-blue-600 font-medium">{renderType(field.type)}</span>
+                                  </div>
+                                  {field.description && (
+                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
+                                      {field.description}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Enum Values */}
+                        {type.enumValues && type.enumValues.length > 0 && (
+                          <div className="mb-4">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">Values:</div>
+                            <div className="space-y-2">
+                              {type.enumValues.map((enumValue) => (
+                                <div key={enumValue.name} className="text-sm border-l-2 border-green-200 pl-3">
+                                  <span className="font-mono text-green-600 font-medium">{enumValue.name}</span>
+                                  {enumValue.description && (
+                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
+                                      {enumValue.description}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Input Fields */}
+                        {type.inputFields && type.inputFields.length > 0 && (
+                          <div className="mb-4">
+                            <div className="text-sm font-semibold text-gray-700 mb-2">Input Fields:</div>
+                            <div className="space-y-2">
+                              {type.inputFields.map((inputField) => (
+                                <div key={inputField.name} className="text-sm border-l-2 border-orange-200 pl-3">
+                                  <div className="flex items-baseline">
+                                    <span className="font-mono text-purple-600 font-medium">{inputField.name}</span>
+                                    <span className="text-gray-500 mx-1">:</span>
+                                    <span className="font-mono text-blue-600 font-medium">{renderType(inputField.type)}</span>
+                                  </div>
+                                  {inputField.description && (
+                                    <div className="text-gray-600 italic text-sm mt-1 bg-gray-50 p-1 rounded">
+                                      {inputField.description}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+      )}
     </div>
   );
 }
