@@ -309,17 +309,44 @@ export default function GraphQLClientPage() {
 
   const formatQuery = useCallback(() => {
     try {
-      // Basic query formatting - in a real app you'd want a proper GraphQL formatter
-      const formatted = query
-        .replace(/\s+/g, ' ')
-        .replace(/{\s*/g, '{\n  ')
-        .replace(/\s*}/g, '\n}')
-        .replace(/,\s*/g, ',\n  ');
-      setQuery(formatted);
+      // Simple and reliable GraphQL query formatting
+      let formatted = query.trim();
+      let indentLevel = 0;
+      const lines: string[] = [];
+      
+      // Split into lines first
+      const originalLines = formatted.split('\n');
+      
+      for (const line of originalLines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        
+        // Handle closing braces
+        if (trimmed.startsWith('}')) {
+          indentLevel = Math.max(0, indentLevel - 1);
+          lines.push('  '.repeat(indentLevel) + trimmed);
+          continue;
+        }
+        
+        // Add line with current indentation
+        lines.push('  '.repeat(indentLevel) + trimmed);
+        
+        // Handle opening braces
+        if (trimmed.endsWith('{')) {
+          indentLevel++;
+        }
+      }
+      
+      setQuery(lines.join('\n'));
+      
+      toast({
+        title: 'Query Formatted',
+        description: 'GraphQL query has been formatted successfully',
+      });
     } catch (error) {
       toast({
         title: 'Format Error',
-        description: 'Could not format query',
+        description: 'Could not format query. Please check your GraphQL syntax.',
         variant: 'destructive',
       });
     }
