@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,6 +47,16 @@ export default function GraphQLClientPage() {
   const [responseTime, setResponseTime] = useState(0);
   const [responseSize, setResponseSize] = useState('0 B');
   const [responseStatus, setResponseStatus] = useState({ status: 0, statusText: '' });
+
+  // Resizable pane state
+  const [queryEditorHeight, setQueryEditorHeight] = useState(() => {
+    const saved = localStorage.getItem('graphql-client-query-height');
+    return saved ? parseInt(saved, 10) : 50; // Default to 50% height
+  });
+  
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
@@ -243,6 +253,44 @@ export default function GraphQLClientPage() {
     URL.revokeObjectURL(url);
   }, [response]);
 
+  // Resize handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current || !containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newHeightPercent = ((e.clientY - containerRect.top) / containerRect.height) * 100;
+    
+    // Limit between 20% and 80%
+    const clampedHeight = Math.max(20, Math.min(80, newHeightPercent));
+    setQueryEditorHeight(clampedHeight);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  }, [handleMouseMove]);
+
+  // Save to localStorage when height changes
+  useEffect(() => {
+    localStorage.setItem('graphql-client-query-height', queryEditorHeight.toString());
+  }, [queryEditorHeight]);
+
+  // Cleanup event listeners
+  useEffect(() => {
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
@@ -361,9 +409,12 @@ export default function GraphQLClientPage() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
+        <div ref={containerRef} className="flex-1 flex flex-col">
           {/* Query Editor Section */}
-          <div className="flex-1 flex flex-col bg-white border-b border-gray-200">
+          <div 
+            className="flex flex-col bg-white border-b border-gray-200"
+            style={{ height: `${queryEditorHeight}%` }}
+          >
             {/* Query Editor Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center space-x-4">
@@ -410,8 +461,20 @@ export default function GraphQLClientPage() {
             </div>
           </div>
 
+          {/* Resize Bar */}
+          <div
+            ref={resizeRef}
+            onMouseDown={handleMouseDown}
+            className="h-1 bg-gray-200 hover:bg-blue-400 cursor-row-resize border-t border-b border-gray-300 flex items-center justify-center group transition-colors"
+          >
+            <div className="w-8 h-0.5 bg-gray-400 group-hover:bg-blue-600 transition-colors"></div>
+          </div>
+
           {/* Results Section */}
-          <div className="flex-1 flex flex-col bg-white">
+          <div 
+            className="flex flex-col bg-white"
+            style={{ height: `${100 - queryEditorHeight}%` }}
+          >
             {/* Results Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center space-x-4">

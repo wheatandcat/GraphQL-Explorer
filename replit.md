@@ -8,6 +8,14 @@ This is a full-stack GraphQL client application built with modern web technologi
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+- **December 12, 2024**: Implemented resizable layout for Query Editor and Response sections
+  - Added drag-to-resize functionality between query editor and response panels
+  - Implemented localStorage persistence for layout preferences
+  - Query editor height adjustable between 20%-80% of available space
+  - Resize bar with visual feedback on hover
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -32,15 +40,16 @@ Preferred communication style: Simple, everyday language.
 #### Frontend Components
 1. **GraphQL Client Page** (`client/src/pages/graphql-client.tsx`)
    - Main interface for GraphQL operations
-   - Monaco editor integration for query writing
+   - Resizable layout with adjustable query editor and response panels
+   - Text area editors for query writing and variable input
    - Request headers and variables management
-   - Response display with formatting
+   - Response display with formatting and status indicators
+   - LocalStorage persistence for layout preferences
 
 2. **Monaco Editor Component** (`client/src/components/monaco-editor.tsx`)
-   - Custom wrapper around Monaco Editor
-   - GraphQL syntax highlighting
-   - JSON syntax highlighting for variables/responses
-   - Theme support (light/dark)
+   - Simplified text area implementation (replaced Monaco due to worker issues)
+   - GraphQL and JSON editing capabilities
+   - Monospace font styling with proper formatting
 
 3. **UI Components** (`client/src/components/ui/`)
    - Complete shadcn/ui component library
