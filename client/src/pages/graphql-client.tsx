@@ -23,7 +23,11 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Search
+  Search,
+  Database,
+  Edit,
+  Trash2,
+  Check
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -41,6 +45,15 @@ interface QueryHistory {
   endpoint: string;
   timestamp: number;
   name?: string;
+}
+
+interface EndpointConfig {
+  id: string;
+  name: string;
+  url: string;
+  headers: Header[];
+  history: QueryHistory[];
+  lastUsed: number;
 }
 
 interface GraphQLType {
@@ -82,14 +95,34 @@ interface GraphQLSchema {
 export default function GraphQLClientPage() {
   const { toast } = useToast();
   
-  // State
-  const [endpoint, setEndpoint] = useState('https://countries.trevorblades.com/');
-  const [headers, setHeaders] = useState<Header[]>(() => {
-    const saved = localStorage.getItem('graphql-client-headers');
-    return saved ? JSON.parse(saved) : [
-      { key: 'Content-Type', value: 'application/json' }
-    ];
+  // Endpoint management state
+  const [endpoints, setEndpoints] = useState<EndpointConfig[]>(() => {
+    const saved = localStorage.getItem('graphql-client-endpoints');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    // Default endpoint configuration
+    return [{
+      id: 'default',
+      name: 'Countries API',
+      url: 'https://countries.trevorblades.com/',
+      headers: [{ key: 'Content-Type', value: 'application/json' }],
+      history: [],
+      lastUsed: Date.now()
+    }];
   });
+  
+  const [currentEndpointId, setCurrentEndpointId] = useState<string>(() => {
+    const saved = localStorage.getItem('graphql-client-current-endpoint');
+    return saved || 'default';
+  });
+  
+  // Get current endpoint configuration
+  const currentEndpoint = endpoints.find(ep => ep.id === currentEndpointId) || endpoints[0];
+  
+  // State derived from current endpoint
+  const [endpoint, setEndpoint] = useState(currentEndpoint.url);
+  const [headers, setHeaders] = useState<Header[]>(currentEndpoint.headers);
   const [variables, setVariables] = useState('{}');
   const [query, setQuery] = useState(`query {
   countries {
@@ -116,12 +149,12 @@ export default function GraphQLClientPage() {
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Query history state
-  const [queryHistory, setQueryHistory] = useState<QueryHistory[]>(() => {
-    const saved = localStorage.getItem('graphql-client-history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // UI state
   const [showHistory, setShowHistory] = useState(false);
+  const [showEndpointManager, setShowEndpointManager] = useState(false);
+  const [newEndpointName, setNewEndpointName] = useState('');
+  const [newEndpointUrl, setNewEndpointUrl] = useState('');
+  const [editingEndpoint, setEditingEndpoint] = useState<string | null>(null);
   
   // Documentation state
   const [schema, setSchema] = useState<GraphQLSchema | null>(null);
@@ -134,26 +167,94 @@ export default function GraphQLClientPage() {
   const [showVariables, setShowVariables] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
 
-  // Save headers to localStorage whenever they change
+  // Save endpoints to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('graphql-client-headers', JSON.stringify(headers));
-  }, [headers]);
+    localStorage.setItem('graphql-client-endpoints', JSON.stringify(endpoints));
+  }, [endpoints]);
+  
+  // Save current endpoint ID
+  useEffect(() => {
+    localStorage.setItem('graphql-client-current-endpoint', currentEndpointId);
+  }, [currentEndpointId]);
+  
+  // Update local state when endpoint changes
+  useEffect(() => {
+    if (currentEndpoint) {
+      setEndpoint(currentEndpoint.url);
+      setHeaders(currentEndpoint.headers);
+    }
+  }, [currentEndpoint]);
+
+  // Endpoint management functions
+  const updateCurrentEndpoint = useCallback((updates: Partial<Omit<EndpointConfig, 'id'>>) => {
+    setEndpoints(prev => prev.map(ep => 
+      ep.id === currentEndpointId 
+        ? { ...ep, ...updates, lastUsed: Date.now() }
+        : ep
+    ));
+  }, [currentEndpointId]);
 
   const addHeader = useCallback(() => {
-    setHeaders(prev => [...prev, { key: '', value: '' }]);
-  }, []);
+    const newHeaders = [...headers, { key: '', value: '' }];
+    setHeaders(newHeaders);
+    updateCurrentEndpoint({ headers: newHeaders });
+  }, [headers, updateCurrentEndpoint]);
 
   const removeHeader = useCallback((index: number) => {
-    setHeaders(prev => prev.filter((_, i) => i !== index));
-  }, []);
+    const newHeaders = headers.filter((_, i) => i !== index);
+    setHeaders(newHeaders);
+    updateCurrentEndpoint({ headers: newHeaders });
+  }, [headers, updateCurrentEndpoint]);
 
   const updateHeader = useCallback((index: number, field: 'key' | 'value', value: string) => {
-    setHeaders(prev => 
-      prev.map((header, i) => 
-        i === index ? { ...header, [field]: value } : header
-      )
+    const newHeaders = headers.map((header, i) => 
+      i === index ? { ...header, [field]: value } : header
     );
-  }, []);
+    setHeaders(newHeaders);
+    updateCurrentEndpoint({ headers: newHeaders });
+  }, [headers, updateCurrentEndpoint]);
+
+  // Endpoint switching
+  const switchToEndpoint = useCallback((endpointId: string) => {
+    const targetEndpoint = endpoints.find(ep => ep.id === endpointId);
+    if (targetEndpoint) {
+      setCurrentEndpointId(endpointId);
+      updateCurrentEndpoint({ lastUsed: Date.now() });
+    }
+  }, [endpoints, updateCurrentEndpoint]);
+
+  // Add new endpoint
+  const addEndpoint = useCallback((name: string, url: string) => {
+    if (!name.trim() || !url.trim()) return;
+    
+    const newEndpoint: EndpointConfig = {
+      id: Date.now().toString(),
+      name: name.trim(),
+      url: url.trim(),
+      headers: [{ key: 'Content-Type', value: 'application/json' }],
+      history: [],
+      lastUsed: Date.now()
+    };
+    setEndpoints(prev => [...prev, newEndpoint]);
+    setCurrentEndpointId(newEndpoint.id);
+    setNewEndpointName('');
+    setNewEndpointUrl('');
+    toast({
+      title: 'Endpoint Added',
+      description: `"${name}" endpoint has been added`,
+    });
+  }, [toast]);
+
+  // Remove endpoint
+  const removeEndpoint = useCallback((endpointId: string) => {
+    if (endpoints.length <= 1) return; // Don't remove last endpoint
+    
+    setEndpoints(prev => prev.filter(ep => ep.id !== endpointId));
+    if (currentEndpointId === endpointId) {
+      const remaining = endpoints.filter(ep => ep.id !== endpointId);
+      setCurrentEndpointId(remaining[0]?.id || 'default');
+    }
+  }, [endpoints, currentEndpointId]);
 
   // Add to history after successful query execution
   const addToHistory = useCallback((query: string, variables: string, endpoint: string) => {
@@ -166,15 +267,13 @@ export default function GraphQLClientPage() {
       name: extractQueryName(query) || 'Untitled Query'
     };
 
-    setQueryHistory(prev => {
-      // Remove duplicate if exists
-      const filtered = prev.filter(item => 
+    // Update history for current endpoint
+    updateCurrentEndpoint({
+      history: [historyItem, ...currentEndpoint.history.filter(item => 
         !(item.query === query && item.variables === variables && item.endpoint === endpoint)
-      );
-      // Add new item at the beginning and keep only last 50
-      return [historyItem, ...filtered].slice(0, 50);
+      )].slice(0, 50)
     });
-  }, []);
+  }, [currentEndpoint.history, updateCurrentEndpoint]);
 
   // Extract query name from GraphQL query
   const extractQueryName = useCallback((query: string): string | null => {
@@ -431,33 +530,29 @@ export default function GraphQLClientPage() {
     };
   }, [handleMouseMove, handleMouseUp]);
 
-  // Save query history to localStorage
-  useEffect(() => {
-    localStorage.setItem('graphql-client-history', JSON.stringify(queryHistory));
-  }, [queryHistory]);
-
-
-
   // Load query from history
   const loadFromHistory = useCallback((historyItem: QueryHistory) => {
     setQuery(historyItem.query);
     setVariables(historyItem.variables);
-    setEndpoint(historyItem.endpoint);
+    if (historyItem.endpoint !== endpoint) {
+      setEndpoint(historyItem.endpoint);
+      updateCurrentEndpoint({ url: historyItem.endpoint });
+    }
     setShowHistory(false);
     toast({
       title: 'History Loaded',
       description: `Loaded "${historyItem.name}" from history`,
     });
-  }, [toast]);
+  }, [toast, endpoint, updateCurrentEndpoint]);
 
-  // Clear history
+  // Clear history for current endpoint
   const clearHistory = useCallback(() => {
-    setQueryHistory([]);
+    updateCurrentEndpoint({ history: [] });
     toast({
       title: 'History Cleared',
-      description: 'All query history has been cleared',
+      description: 'All query history has been cleared for this endpoint',
     });
-  }, [toast]);
+  }, [toast, updateCurrentEndpoint]);
 
   // Fetch GraphQL schema using introspection
   const fetchSchema = useCallback(async () => {
@@ -757,19 +852,51 @@ export default function GraphQLClientPage() {
         {/* Sidebar */}
         <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
           {/* Endpoint Configuration */}
+          {/* Endpoint Management */}
           <div className="p-4 border-b border-gray-200">
-            <Label className="text-sm font-medium text-gray-700 mb-2">GraphQL Endpoint</Label>
-            <div className="flex space-x-2">
-              <Input
-                type="text"
-                placeholder="https://api.example.com/graphql"
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={testConnection} size="sm">
-                <Plug className="w-4 h-4" />
+            <div className="flex items-center justify-between mb-3">
+              <Label className="text-sm font-medium text-gray-700">GraphQL Endpoints</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowEndpointManager(true)}
+                className="text-xs text-blue-600 hover:text-blue-700 p-0"
+              >
+                <Database className="w-3 h-3 mr-1" />
+                Manage
               </Button>
+            </div>
+            
+            {/* Current Endpoint Selector */}
+            <div className="space-y-2">
+              <select
+                value={currentEndpointId}
+                onChange={(e) => switchToEndpoint(e.target.value)}
+                className="w-full p-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {endpoints.map((ep) => (
+                  <option key={ep.id} value={ep.id}>
+                    {ep.name} - {ep.url}
+                  </option>
+                ))}
+              </select>
+              
+              {/* Current Endpoint URL Input */}
+              <div className="flex space-x-2">
+                <Input
+                  type="text"
+                  placeholder="https://api.example.com/graphql"
+                  value={endpoint}
+                  onChange={(e) => {
+                    setEndpoint(e.target.value);
+                    updateCurrentEndpoint({ url: e.target.value });
+                  }}
+                  className="flex-1"
+                />
+                <Button onClick={testConnection} size="sm">
+                  <Plug className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -880,7 +1007,7 @@ export default function GraphQLClientPage() {
                     className="text-xs"
                   >
                     <History className="w-3 h-3 mr-1" />
-                    History ({queryHistory.length})
+                    History ({currentEndpoint.history.length})
                   </Button>
                   <Button
                     variant="outline"
@@ -1257,14 +1384,14 @@ export default function GraphQLClientPage() {
           {/* Action Bar */}
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              {queryHistory.length} {queryHistory.length === 1 ? 'query' : 'queries'} saved
+              {currentEndpoint.history.length} {currentEndpoint.history.length === 1 ? 'query' : 'queries'} saved
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={clearHistory}
               className="text-xs text-red-600 hover:text-red-700"
-              disabled={queryHistory.length === 0}
+              disabled={currentEndpoint.history.length === 0}
             >
               Clear All
             </Button>
@@ -1272,7 +1399,7 @@ export default function GraphQLClientPage() {
           
           <ScrollArea className="flex-1">
             <div className="p-4">
-              {queryHistory.length === 0 ? (
+              {currentEndpoint.history.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 pt-20">
                   <Clock className="w-16 h-16 mb-4 text-gray-300" />
                   <h3 className="text-lg font-medium text-gray-600 mb-2">No query history yet</h3>
@@ -1283,7 +1410,7 @@ export default function GraphQLClientPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {queryHistory.map((item) => (
+                  {currentEndpoint.history.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => loadFromHistory(item)}
@@ -1380,6 +1507,146 @@ export default function GraphQLClientPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add Header
             </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Endpoint Manager Modal */}
+      <Sheet open={showEndpointManager} onOpenChange={setShowEndpointManager}>
+        <SheetContent side="right" className="w-[500px] sm:max-w-[500px]">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center">
+              <Database className="w-5 h-5 mr-2" />
+              Endpoint Manager
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="flex flex-col h-full">
+            {/* Add New Endpoint */}
+            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Add New Endpoint</h3>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Endpoint name (e.g., My GraphQL API)"
+                  value={newEndpointName}
+                  onChange={(e) => setNewEndpointName(e.target.value)}
+                  className="text-sm"
+                />
+                <Input
+                  placeholder="Endpoint URL (e.g., https://api.example.com/graphql)"
+                  value={newEndpointUrl}
+                  onChange={(e) => setNewEndpointUrl(e.target.value)}
+                  className="text-sm"
+                />
+                <Button
+                  onClick={() => addEndpoint(newEndpointName, newEndpointUrl)}
+                  disabled={!newEndpointName.trim() || !newEndpointUrl.trim()}
+                  className="w-full"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Endpoint
+                </Button>
+              </div>
+            </div>
+
+            {/* Endpoint List */}
+            <div className="flex-1 overflow-hidden">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">
+                Saved Endpoints ({endpoints.length})
+              </h3>
+              <ScrollArea className="h-full">
+                <div className="space-y-3">
+                  {endpoints.map((ep) => (
+                    <div
+                      key={ep.id}
+                      className={`p-4 border rounded-lg transition-colors ${
+                        ep.id === currentEndpointId
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          {editingEndpoint === ep.id ? (
+                            <Input
+                              value={ep.name}
+                              onChange={(e) => {
+                                setEndpoints(prev => prev.map(endpoint => 
+                                  endpoint.id === ep.id 
+                                    ? { ...endpoint, name: e.target.value }
+                                    : endpoint
+                                ));
+                              }}
+                              className="text-sm font-medium mb-1"
+                              onBlur={() => setEditingEndpoint(null)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  setEditingEndpoint(null);
+                                }
+                              }}
+                              autoFocus
+                            />
+                          ) : (
+                            <h4 
+                              className="text-sm font-medium text-gray-900 truncate cursor-pointer"
+                              onClick={() => setEditingEndpoint(ep.id)}
+                            >
+                              {ep.name}
+                              {ep.id === currentEndpointId && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  Current
+                                </span>
+                              )}
+                            </h4>
+                          )}
+                          <p className="text-xs text-gray-500 truncate">{ep.url}</p>
+                          <div className="flex items-center text-xs text-gray-400 mt-1">
+                            <History className="w-3 h-3 mr-1" />
+                            {ep.history.length} queries
+                            <span className="mx-2">•</span>
+                            Last used: {new Date(ep.lastUsed).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1 ml-2">
+                          {ep.id !== currentEndpointId && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => switchToEndpoint(ep.id)}
+                              className="p-1 text-blue-600 hover:text-blue-700"
+                              title="Switch to this endpoint"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingEndpoint(ep.id)}
+                            className="p-1 text-gray-600 hover:text-gray-700"
+                            title="Edit endpoint name"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          {endpoints.length > 1 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeEndpoint(ep.id)}
+                              className="p-1 text-red-600 hover:text-red-700"
+                              title="Delete endpoint"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
