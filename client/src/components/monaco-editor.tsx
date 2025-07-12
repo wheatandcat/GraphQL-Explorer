@@ -117,19 +117,21 @@ export function MonacoEditor({
         return null;
       }
       
-      // Start with the query type as default
-      let currentType = schema.queryType;
+      // Get the Query type definition from the types array
+      const queryTypeName = schema.queryType?.name || 'Query';
+      let currentType = schema.types?.find(t => t.name === queryTypeName) || null;
       
-      console.log('Schema queryType:', schema.queryType?.name);
-      console.log('Schema types available:', schema.types?.map(t => t.name));
+      console.log('Schema queryType name:', queryTypeName);
+      console.log('Found Query type in types array:', currentType?.name);
+      console.log('Query type fields:', currentType?.fields?.map(f => f.name));
       
-      // If queryType is not set, try to find Query type manually
+      // If still not found, try to find any type with query-like name
       if (!currentType) {
-        currentType = schema.types?.find(t => t.name === 'Query') || null;
+        currentType = schema.types?.find(t => t.name.toLowerCase() === 'query') || null;
         console.log('Fallback Query type found:', currentType?.name);
       }
       
-      console.log('Initial currentType:', currentType?.name, 'Fields:', currentType?.fields?.length);
+      console.log('Initial currentType:', currentType?.name, 'Fields count:', currentType?.fields?.length);
       
       // Parse the field path more accurately
       // Split by braces and analyze each level
