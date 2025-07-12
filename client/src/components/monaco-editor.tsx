@@ -282,8 +282,93 @@ export function MonacoEditor({
     }
   }, [onChange, language, triggerSuggestions, schema]);
 
-  // Handle key down for suggestion navigation
+  // Handle key down for suggestion navigation and smart indentation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle Enter key for auto-indentation
+    if (e.key === 'Enter' && language === 'graphql' && textareaRef.current) {
+      const textarea = textareaRef.current;
+      const position = textarea.selectionStart;
+      const beforeCursor = value.substring(0, position);
+      const afterCursor = value.substring(position);
+      
+      // Get current line and its indentation
+      const lines = beforeCursor.split('\n');
+      const currentLine = lines[lines.length - 1];
+      const currentIndent = currentLine.match(/^\s*/)?.[0] || '';
+      
+      // Determine if we need to increase indentation
+      let newIndent = currentIndent;
+      
+      // Check if the current line ends with an opening brace
+      const trimmedLine = currentLine.trim();
+      if (trimmedLine.endsWith('{')) {
+        newIndent = currentIndent + '  '; // Add 2 spaces for indentation
+      }
+      
+      // Check if next line starts with closing brace and adjust
+      const nextChar = afterCursor.charAt(0);
+      const shouldAddClosingBrace = nextChar === '}';
+      
+      if (!showSuggestions || suggestions.length === 0) {
+        e.preventDefault();
+        
+        let insertText = '\n' + newIndent;
+        let newCursorPosition = position + insertText.length;
+        
+        // If we're inside braces and next char is '}', add extra line for closing brace
+        if (shouldAddClosingBrace && newIndent.length > currentIndent.length) {
+          insertText = '\n' + newIndent + '\n' + currentIndent;
+          newCursorPosition = position + newIndent.length + 1;
+        }
+        
+        const newValue = beforeCursor + insertText + afterCursor;
+        onChange(newValue);
+        
+        setTimeout(() => {
+          textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        }, 0);
+        
+        return;
+      }
+    }
+
+    // Handle Tab key for indentation
+    if (e.key === 'Tab' && language === 'graphql' && textareaRef.current && (!showSuggestions || suggestions.length === 0)) {
+      e.preventDefault();
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      
+      // If there's a selection, indent all selected lines
+      if (start !== end) {
+        const beforeSelection = value.substring(0, start);
+        const selection = value.substring(start, end);
+        const afterSelection = value.substring(end);
+        
+        const lines = selection.split('\n');
+        const indentedLines = lines.map(line => '  ' + line);
+        const newSelection = indentedLines.join('\n');
+        
+        const newValue = beforeSelection + newSelection + afterSelection;
+        onChange(newValue);
+        
+        setTimeout(() => {
+          textarea.setSelectionRange(start, start + newSelection.length);
+        }, 0);
+      } else {
+        // Insert 2 spaces at cursor position
+        const beforeCursor = value.substring(0, start);
+        const afterCursor = value.substring(start);
+        const newValue = beforeCursor + '  ' + afterCursor;
+        onChange(newValue);
+        
+        setTimeout(() => {
+          textarea.setSelectionRange(start + 2, start + 2);
+        }, 0);
+      }
+      return;
+    }
+
     if (!showSuggestions || suggestions.length === 0) return;
 
     switch (e.key) {
@@ -324,7 +409,7 @@ export function MonacoEditor({
         setShowSuggestions(false);
         break;
     }
-  }, [showSuggestions, suggestions, selectedSuggestion, value, cursorPosition, onChange]);
+  }, [showSuggestions, suggestions, selectedSuggestion, value, cursorPosition, onChange, language]);
 
   // Handle suggestion click
   const handleSuggestionClick = useCallback((suggestion: Suggestion) => {
