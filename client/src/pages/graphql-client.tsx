@@ -935,6 +935,7 @@ export default function GraphQLClientPage() {
                 onChange={setQuery}
                 language="graphql"
                 height="100%"
+                schema={schema}
               />
             </div>
           </div>
