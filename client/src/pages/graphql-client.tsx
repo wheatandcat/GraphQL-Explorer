@@ -84,9 +84,12 @@ export default function GraphQLClientPage() {
   
   // State
   const [endpoint, setEndpoint] = useState('https://countries.trevorblades.com/');
-  const [headers, setHeaders] = useState<Header[]>([
-    { key: 'Content-Type', value: 'application/json' }
-  ]);
+  const [headers, setHeaders] = useState<Header[]>(() => {
+    const saved = localStorage.getItem('graphql-client-headers');
+    return saved ? JSON.parse(saved) : [
+      { key: 'Content-Type', value: 'application/json' }
+    ];
+  });
   const [variables, setVariables] = useState('{}');
   const [query, setQuery] = useState(`query {
   countries {
@@ -130,6 +133,11 @@ export default function GraphQLClientPage() {
   // Panel state
   const [showVariables, setShowVariables] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
+
+  // Save headers to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('graphql-client-headers', JSON.stringify(headers));
+  }, [headers]);
 
   const addHeader = useCallback(() => {
     setHeaders(prev => [...prev, { key: '', value: '' }]);
