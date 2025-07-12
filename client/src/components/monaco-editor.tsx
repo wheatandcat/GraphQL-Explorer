@@ -284,16 +284,6 @@ export function MonacoEditor({
 
   // Handle key down for suggestion navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Handle Ctrl+Space for manual suggestion trigger
-    if (e.key === ' ' && e.ctrlKey) {
-      e.preventDefault();
-      if (textareaRef.current) {
-        const position = textareaRef.current.selectionStart;
-        triggerSuggestions(value, position);
-      }
-      return;
-    }
-
     if (!showSuggestions || suggestions.length === 0) return;
 
     switch (e.key) {
@@ -334,7 +324,7 @@ export function MonacoEditor({
         setShowSuggestions(false);
         break;
     }
-  }, [showSuggestions, suggestions, selectedSuggestion, value, cursorPosition, onChange, triggerSuggestions]);
+  }, [showSuggestions, suggestions, selectedSuggestion, value, cursorPosition, onChange]);
 
   // Handle suggestion click
   const handleSuggestionClick = useCallback((suggestion: Suggestion) => {
@@ -390,7 +380,7 @@ export function MonacoEditor({
         }}
         placeholder={
           language === 'graphql' 
-            ? 'Enter your GraphQL query here... (start typing or press Ctrl+Space for suggestions)' 
+            ? 'Enter your GraphQL query here... (start typing for suggestions)' 
             : 'Enter JSON variables here...'
         }
         spellCheck={false}
