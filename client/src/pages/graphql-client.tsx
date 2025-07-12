@@ -837,6 +837,7 @@ export default function GraphQLClientPage() {
                 onChange={setVariables}
                 language="json"
                 height="100%"
+                query={query}
               />
             </div>
           </div>

@@ -51,6 +51,7 @@ interface MonacoEditorProps {
   readOnly?: boolean;
   theme?: 'vs' | 'vs-dark' | 'hc-black';
   schema?: GraphQLSchema;
+  query?: string; // For JSON variables editor to extract variable definitions
 }
 
 export function MonacoEditor({
@@ -60,6 +61,7 @@ export function MonacoEditor({
   height = '100%',
   readOnly = false,
   schema,
+  query,
 }: MonacoEditorProps) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -85,8 +87,114 @@ export function MonacoEditor({
     return schema.types.find(type => type.name === typeName) || null;
   }, [schema]);
 
+  // Extract variable definitions from GraphQL query
+  const extractVariableDefinitions = useCallback((queryText: string) => {
+    if (!queryText) return {};
+    
+    const variableRegex = /\$(\w+):\s*(\w+[!\[\]]*)/g;
+    const variables: Record<string, string> = {};
+    let match;
+    
+    while ((match = variableRegex.exec(queryText)) !== null) {
+      variables[match[1]] = match[2];
+    }
+    
+    return variables;
+  }, []);
+
+  // Get JSON suggestions based on context
+  const getJsonSuggestions = useCallback((text: string, position: number): Suggestion[] => {
+    if (!query) return [];
+    
+    const variables = extractVariableDefinitions(query);
+    const beforeCursor = text.substring(0, position);
+    const currentLine = beforeCursor.split('\n').pop() || '';
+    
+    // Check if we're starting a new object or at root level
+    const trimmedText = text.trim();
+    if (!trimmedText || trimmedText === '{') {
+      return Object.keys(variables).map(varName => ({
+        label: varName,
+        detail: `${variables[varName]}`,
+        documentation: `Variable of type ${variables[varName]}`,
+        insertText: `"${varName}": `,
+      }));
+    }
+    
+    // Check if we're typing a key name
+    const keyMatch = currentLine.match(/^\s*"?(\w*)$/);
+    if (keyMatch) {
+      const partial = keyMatch[1];
+      return Object.keys(variables)
+        .filter(varName => varName.toLowerCase().includes(partial.toLowerCase()))
+        .map(varName => ({
+          label: varName,
+          detail: `${variables[varName]}`,
+          documentation: `Variable of type ${variables[varName]}`,
+          insertText: `"${varName}": `,
+        }));
+    }
+    
+    // Check if we're typing a value
+    const valueMatch = currentLine.match(/^\s*"(\w+)":\s*(.*)$/);
+    if (valueMatch) {
+      const varName = valueMatch[1];
+      const varType = variables[varName];
+      if (varType) {
+        return getValueSuggestions(varType);
+      }
+    }
+    
+    return [];
+  }, [query, extractVariableDefinitions]);
+
+  // Get value suggestions based on GraphQL type
+  const getValueSuggestions = useCallback((type: string): Suggestion[] => {
+    const baseType = type.replace(/[!\[\]]/g, '');
+    
+    switch (baseType) {
+      case 'String':
+        return [
+          { label: '""', detail: 'String', documentation: 'Empty string', insertText: '""' },
+          { label: '"example"', detail: 'String', documentation: 'Example string', insertText: '"example"' },
+        ];
+      case 'Int':
+      case 'Float':
+        return [
+          { label: '0', detail: 'Number', documentation: 'Zero', insertText: '0' },
+          { label: '1', detail: 'Number', documentation: 'One', insertText: '1' },
+          { label: '42', detail: 'Number', documentation: 'Example number', insertText: '42' },
+        ];
+      case 'Boolean':
+        return [
+          { label: 'true', detail: 'Boolean', documentation: 'True value', insertText: 'true' },
+          { label: 'false', detail: 'Boolean', documentation: 'False value', insertText: 'false' },
+        ];
+      case 'ID':
+        return [
+          { label: '"1"', detail: 'ID', documentation: 'Example ID', insertText: '"1"' },
+          { label: '"abc123"', detail: 'ID', documentation: 'Example ID', insertText: '"abc123"' },
+        ];
+      default:
+        if (type.includes('[')) {
+          return [
+            { label: '[]', detail: 'Array', documentation: 'Empty array', insertText: '[]' },
+            { label: '[...]', detail: 'Array', documentation: 'Array with items', insertText: '[' },
+          ];
+        }
+        return [
+          { label: '{}', detail: 'Object', documentation: 'Empty object', insertText: '{}' },
+          { label: 'null', detail: 'Null', documentation: 'Null value', insertText: 'null' },
+        ];
+    }
+  }, []);
+
   // Parse current context and get suggestions
   const getSuggestions = useCallback((text: string, position: number): Suggestion[] => {
+    if (language === 'json') {
+      return getJsonSuggestions(text, position);
+    }
+    
     if (!schema || language !== 'graphql') {
       return [];
     }
@@ -253,13 +361,11 @@ export function MonacoEditor({
 
   // Trigger suggestions manually or automatically
   const triggerSuggestions = useCallback((text: string, position: number) => {
-    if (language === 'graphql') {
-      const newSuggestions = getSuggestions(text, position);
-      setSuggestions(newSuggestions);
-      setShowSuggestions(newSuggestions.length > 0);
-      setSelectedSuggestion(0);
-    }
-  }, [language, getSuggestions]);
+    const newSuggestions = getSuggestions(text, position);
+    setSuggestions(newSuggestions);
+    setShowSuggestions(newSuggestions.length > 0);
+    setSelectedSuggestion(0);
+  }, [getSuggestions]);
 
   // Handle input change and update suggestions
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -287,6 +393,19 @@ export function MonacoEditor({
           setShowSuggestions(false);
         }
       }
+    } else if (language === 'json' && query) {
+      // JSON suggestions triggering
+      if (lastChar && (/[a-zA-Z]/.test(lastChar) || lastChar === '"' || lastChar === '{' || lastChar === ' ' || lastChar === ':')) {
+        triggerSuggestions(newValue, position);
+      } else {
+        // Continue showing suggestions if we're still typing
+        const wordMatch = currentLine.match(/[a-zA-Z]+$/);
+        if (wordMatch && wordMatch[0].length > 0) {
+          triggerSuggestions(newValue, position);
+        } else {
+          setShowSuggestions(false);
+        }
+      }
     } else {
       setShowSuggestions(false);
     }
@@ -294,8 +413,8 @@ export function MonacoEditor({
 
   // Handle key down for suggestion navigation and smart indentation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Handle Enter key for auto-indentation
-    if (e.key === 'Enter' && language === 'graphql' && textareaRef.current) {
+    // Handle Enter key for auto-indentation (GraphQL and JSON)
+    if (e.key === 'Enter' && (language === 'graphql' || language === 'json') && textareaRef.current) {
       const textarea = textareaRef.current;
       const position = textarea.selectionStart;
       const beforeCursor = value.substring(0, position);
@@ -342,8 +461,8 @@ export function MonacoEditor({
       }
     }
 
-    // Handle Tab key for indentation
-    if (e.key === 'Tab' && language === 'graphql' && textareaRef.current && (!showSuggestions || suggestions.length === 0)) {
+    // Handle Tab key for indentation (GraphQL and JSON)
+    if (e.key === 'Tab' && (language === 'graphql' || language === 'json') && textareaRef.current && (!showSuggestions || suggestions.length === 0)) {
       e.preventDefault();
       const textarea = textareaRef.current;
       const start = textarea.selectionStart;
