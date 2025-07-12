@@ -902,7 +902,7 @@ export default function GraphQLClientPage() {
               >
                 {endpoints.map((ep) => (
                   <option key={ep.id} value={ep.id}>
-                    {ep.name} - {ep.url}
+                    {ep.name}
                   </option>
                 ))}
               </select>
