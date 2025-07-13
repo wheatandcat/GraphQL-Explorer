@@ -22,6 +22,10 @@ Preferred communication style: Simple, everyday language.
   - Simplified endpoint selector to show only endpoint names (removed long URLs)
   - Cleaned up UI by removing Download, Help, and Settings buttons for streamlined interface
   - Modified Query Editor and Variables initialization to load latest values from endpoint history on reload
+  - Added comprehensive Import/Export functionality for all data including endpoints, headers, query history, and settings
+  - Export all data or individual endpoints as JSON files with timestamps
+  - Import data with merge capability and validation
+  - Import/Export UI accessible from header with detailed data information display
 
 - **July 12, 2025**: Completed GraphQL autocomplete/suggestion system
   - Automatic schema loading when endpoint is set

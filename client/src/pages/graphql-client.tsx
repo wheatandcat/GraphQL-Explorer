@@ -24,7 +24,11 @@ import {
   Database,
   Edit,
   Trash2,
-  Check
+  Check,
+  Download,
+  Upload,
+  FileDown,
+  FileUp
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -161,6 +165,7 @@ export default function GraphQLClientPage() {
   // UI state
   const [showHistory, setShowHistory] = useState(false);
   const [showEndpointManager, setShowEndpointManager] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
   const [newEndpointName, setNewEndpointName] = useState('');
   const [newEndpointUrl, setNewEndpointUrl] = useState('');
   const [editingEndpoint, setEditingEndpoint] = useState<string | null>(null);
@@ -521,6 +526,121 @@ export default function GraphQLClientPage() {
     }
   }, [toast]);
 
+  // Export all data
+  const exportData = useCallback(() => {
+    const exportData = {
+      version: '1.0',
+      timestamp: Date.now(),
+      endpoints,
+      currentEndpointId,
+      queryEditorHeight
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `graphql-client-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Data Exported',
+      description: 'All endpoints and settings have been exported',
+    });
+  }, [endpoints, currentEndpointId, queryEditorHeight, toast]);
+
+  // Import data
+  const importData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target?.result as string);
+        
+        // Validate imported data structure
+        if (!importedData.endpoints || !Array.isArray(importedData.endpoints)) {
+          throw new Error('Invalid data format: missing or invalid endpoints');
+        }
+
+        // Merge or replace endpoints
+        const newEndpoints = importedData.endpoints;
+        const mergedEndpoints = [...endpoints];
+        
+        newEndpoints.forEach((newEndpoint: EndpointConfig) => {
+          const existingIndex = mergedEndpoints.findIndex(ep => ep.id === newEndpoint.id);
+          if (existingIndex >= 0) {
+            // Replace existing endpoint
+            mergedEndpoints[existingIndex] = newEndpoint;
+          } else {
+            // Add new endpoint
+            mergedEndpoints.push(newEndpoint);
+          }
+        });
+
+        setEndpoints(mergedEndpoints);
+        
+        // Set current endpoint if provided
+        if (importedData.currentEndpointId) {
+          setCurrentEndpointId(importedData.currentEndpointId);
+        }
+        
+        // Set query editor height if provided
+        if (importedData.queryEditorHeight) {
+          setQueryEditorHeight(importedData.queryEditorHeight);
+        }
+
+        setShowImportExport(false);
+        toast({
+          title: 'Data Imported',
+          description: `Successfully imported ${newEndpoints.length} endpoints`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Import Failed',
+          description: 'Invalid file format or corrupted data',
+          variant: 'destructive',
+        });
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+  }, [endpoints, toast]);
+
+  // Export current endpoint only
+  const exportCurrentEndpoint = useCallback(() => {
+    if (!currentEndpoint) return;
+    
+    const exportData = {
+      version: '1.0',
+      timestamp: Date.now(),
+      endpoint: currentEndpoint
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${currentEndpoint.name.toLowerCase().replace(/\s+/g, '-')}-endpoint.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Endpoint Exported',
+      description: `"${currentEndpoint.name}" endpoint has been exported`,
+    });
+  }, [currentEndpoint, toast]);
+
 
 
   // Resize handlers
@@ -866,7 +986,15 @@ export default function GraphQLClientPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              {/* Header buttons removed as requested */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowImportExport(true)}
+                className="text-xs"
+              >
+                <FileDown className="w-4 h-4 mr-1" />
+                Import/Export
+              </Button>
             </div>
           </div>
         </div>
@@ -1663,6 +1791,84 @@ export default function GraphQLClientPage() {
                   ))}
                 </div>
               </ScrollArea>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Import/Export Dialog */}
+      <Sheet open={showImportExport} onOpenChange={setShowImportExport}>
+        <SheetContent side="right" className="w-96">
+          <SheetHeader>
+            <SheetTitle>Import/Export Data</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            {/* Export Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-900">Export</h3>
+              <div className="space-y-3">
+                <Button
+                  onClick={exportData}
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export All Data
+                </Button>
+                <Button
+                  onClick={exportCurrentEndpoint}
+                  className="w-full justify-start"
+                  variant="outline"
+                  disabled={!currentEndpoint}
+                >
+                  <FileDown className="w-4 h-4 mr-2" />
+                  Export Current Endpoint
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500">
+                Export includes endpoints, headers, query history, and settings.
+              </p>
+            </div>
+
+            {/* Import Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-900">Import</h3>
+              <div className="space-y-3">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importData}
+                    className="hidden"
+                    id="import-file"
+                  />
+                  <label
+                    htmlFor="import-file"
+                    className="cursor-pointer flex flex-col items-center space-y-2"
+                  >
+                    <Upload className="w-8 h-8 text-gray-400" />
+                    <span className="text-sm text-gray-600">
+                      Click to import JSON file
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      or drag and drop
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Import will merge with existing data. Duplicate endpoints will be replaced.
+              </p>
+            </div>
+
+            {/* Current Data Info */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-medium text-gray-900 mb-2">Current Data</h3>
+              <div className="text-xs text-gray-600 space-y-1">
+                <div>Endpoints: {endpoints.length}</div>
+                <div>Total History: {endpoints.reduce((sum, ep) => sum + ep.history.length, 0)} queries</div>
+                <div>Current: {currentEndpoint?.name || 'None'}</div>
+              </div>
             </div>
           </div>
         </SheetContent>
