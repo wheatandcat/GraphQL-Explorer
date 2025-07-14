@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0.0",
+  "productName": "GraphQL Explorer",
+  "version": "0.1.0",
+  "identifier": "com.graphql.explorer",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist/public"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "GraphQL Explorer",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "A GraphQL Explorer desktop application",
+    "longDescription": "A powerful GraphQL client for exploring APIs, testing queries, and managing GraphQL endpoints.",
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": false
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}

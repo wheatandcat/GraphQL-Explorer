@@ -1,17 +1,17 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { GraphQLClient, RequestHeaders } from '@/lib/graphql-client';
-import { MonacoEditor } from '@/components/monaco-editor';
-import { 
-  Copy, 
-  Play, 
-  Plus, 
-  X, 
-  Code, 
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { GraphQLClient, RequestHeaders } from "@/lib/graphql-client";
+import { MonacoEditor } from "@/components/monaco-editor";
+import {
+  Copy,
+  Play,
+  Plus,
+  X,
+  Code,
   Plug,
   Loader2,
   History,
@@ -28,11 +28,21 @@ import {
   Download,
   Upload,
   FileDown,
-  FileUp
-} from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+  FileUp,
+} from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import logo from "./logo.png";
 
 interface Header {
   key: string;
@@ -95,32 +105,35 @@ interface GraphQLSchema {
 
 export default function GraphQLClientPage() {
   const { toast } = useToast();
-  
+
   // Endpoint management state
   const [endpoints, setEndpoints] = useState<EndpointConfig[]>(() => {
-    const saved = localStorage.getItem('graphql-client-endpoints');
+    const saved = localStorage.getItem("graphql-client-endpoints");
     if (saved) {
       return JSON.parse(saved);
     }
     // Default endpoint configuration
-    return [{
-      id: 'default',
-      name: 'Countries API',
-      url: 'https://countries.trevorblades.com/',
-      headers: [{ key: 'Content-Type', value: 'application/json' }],
-      history: [],
-      lastUsed: Date.now()
-    }];
+    return [
+      {
+        id: "default",
+        name: "Countries API",
+        url: "https://countries.trevorblades.com/",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+        history: [],
+        lastUsed: Date.now(),
+      },
+    ];
   });
-  
+
   const [currentEndpointId, setCurrentEndpointId] = useState<string>(() => {
-    const saved = localStorage.getItem('graphql-client-current-endpoint');
-    return saved || 'default';
+    const saved = localStorage.getItem("graphql-client-current-endpoint");
+    return saved || "default";
   });
-  
+
   // Get current endpoint configuration
-  const currentEndpoint = endpoints.find(ep => ep.id === currentEndpointId) || endpoints[0];
-  
+  const currentEndpoint =
+    endpoints.find((ep) => ep.id === currentEndpointId) || endpoints[0];
+
   // State derived from current endpoint
   const [endpoint, setEndpoint] = useState(currentEndpoint.url);
   const [headers, setHeaders] = useState<Header[]>(currentEndpoint.headers);
@@ -129,7 +142,7 @@ export default function GraphQLClientPage() {
     if (currentEndpoint.history.length > 0) {
       return currentEndpoint.history[0].variables;
     }
-    return '{}';
+    return "{}";
   });
   const [query, setQuery] = useState(() => {
     // Load latest query from current endpoint's history
@@ -145,19 +158,22 @@ export default function GraphQLClientPage() {
   }
 }`;
   });
-  const [response, setResponse] = useState('');
-  const [responseHeaders, setResponseHeaders] = useState('');
+  const [response, setResponse] = useState("");
+  const [responseHeaders, setResponseHeaders] = useState("");
   const [loading, setLoading] = useState(false);
   const [responseTime, setResponseTime] = useState(0);
-  const [responseSize, setResponseSize] = useState('0 B');
-  const [responseStatus, setResponseStatus] = useState({ status: 0, statusText: '' });
+  const [responseSize, setResponseSize] = useState("0 B");
+  const [responseStatus, setResponseStatus] = useState({
+    status: 0,
+    statusText: "",
+  });
 
   // Resizable pane state
   const [queryEditorHeight, setQueryEditorHeight] = useState(() => {
-    const saved = localStorage.getItem('graphql-client-query-height');
+    const saved = localStorage.getItem("graphql-client-query-height");
     return saved ? parseInt(saved, 10) : 50; // Default to 50% height
   });
-  
+
   const resizeRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,31 +182,32 @@ export default function GraphQLClientPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [showEndpointManager, setShowEndpointManager] = useState(false);
   const [showImportExport, setShowImportExport] = useState(false);
-  const [newEndpointName, setNewEndpointName] = useState('');
-  const [newEndpointUrl, setNewEndpointUrl] = useState('');
+  const [newEndpointName, setNewEndpointName] = useState("");
+  const [newEndpointUrl, setNewEndpointUrl] = useState("");
   const [editingEndpoint, setEditingEndpoint] = useState<string | null>(null);
-  
+
   // Documentation state
   const [schema, setSchema] = useState<GraphQLSchema | null>(null);
   const [showDocs, setShowDocs] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState<GraphQLType | null>(null);
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Panel state
   const [showVariables, setShowVariables] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
 
   // Save endpoints to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('graphql-client-endpoints', JSON.stringify(endpoints));
+    localStorage.setItem("graphql-client-endpoints", JSON.stringify(endpoints));
   }, [endpoints]);
-  
+
   // Save current endpoint ID
   useEffect(() => {
-    localStorage.setItem('graphql-client-current-endpoint', currentEndpointId);
+    localStorage.setItem("graphql-client-current-endpoint", currentEndpointId);
   }, [currentEndpointId]);
-  
+
   // Update local state when endpoint changes
   useEffect(() => {
     if (currentEndpoint) {
@@ -200,126 +217,157 @@ export default function GraphQLClientPage() {
   }, [currentEndpoint]);
 
   // Endpoint management functions
-  const updateCurrentEndpoint = useCallback((updates: Partial<Omit<EndpointConfig, 'id'>>) => {
-    setEndpoints(prev => prev.map(ep => 
-      ep.id === currentEndpointId 
-        ? { ...ep, ...updates, lastUsed: Date.now() }
-        : ep
-    ));
-  }, [currentEndpointId]);
+  const updateCurrentEndpoint = useCallback(
+    (updates: Partial<Omit<EndpointConfig, "id">>) => {
+      setEndpoints((prev) =>
+        prev.map((ep) =>
+          ep.id === currentEndpointId
+            ? { ...ep, ...updates, lastUsed: Date.now() }
+            : ep
+        )
+      );
+    },
+    [currentEndpointId]
+  );
 
   const addHeader = useCallback(() => {
-    const newHeaders = [...headers, { key: '', value: '' }];
+    const newHeaders = [...headers, { key: "", value: "" }];
     setHeaders(newHeaders);
     updateCurrentEndpoint({ headers: newHeaders });
   }, [headers, updateCurrentEndpoint]);
 
-  const removeHeader = useCallback((index: number) => {
-    const newHeaders = headers.filter((_, i) => i !== index);
-    setHeaders(newHeaders);
-    updateCurrentEndpoint({ headers: newHeaders });
-  }, [headers, updateCurrentEndpoint]);
+  const removeHeader = useCallback(
+    (index: number) => {
+      const newHeaders = headers.filter((_, i) => i !== index);
+      setHeaders(newHeaders);
+      updateCurrentEndpoint({ headers: newHeaders });
+    },
+    [headers, updateCurrentEndpoint]
+  );
 
-  const updateHeader = useCallback((index: number, field: 'key' | 'value', value: string) => {
-    const newHeaders = headers.map((header, i) => 
-      i === index ? { ...header, [field]: value } : header
-    );
-    setHeaders(newHeaders);
-    updateCurrentEndpoint({ headers: newHeaders });
-  }, [headers, updateCurrentEndpoint]);
+  const updateHeader = useCallback(
+    (index: number, field: "key" | "value", value: string) => {
+      const newHeaders = headers.map((header, i) =>
+        i === index ? { ...header, [field]: value } : header
+      );
+      setHeaders(newHeaders);
+      updateCurrentEndpoint({ headers: newHeaders });
+    },
+    [headers, updateCurrentEndpoint]
+  );
 
   // Endpoint switching
-  const switchToEndpoint = useCallback((endpointId: string) => {
-    const targetEndpoint = endpoints.find(ep => ep.id === endpointId);
-    if (targetEndpoint) {
-      setCurrentEndpointId(endpointId);
-      setEndpoint(targetEndpoint.url);
-      setHeaders(targetEndpoint.headers);
-      
-      // Load latest query and variables from history if available
-      if (targetEndpoint.history.length > 0) {
-        const latestHistory = targetEndpoint.history[0]; // History is sorted by newest first
-        setQuery(latestHistory.query);
-        setVariables(latestHistory.variables);
-      } else {
-        // Set default query and variables if no history
-        setQuery(`query {
+  const switchToEndpoint = useCallback(
+    (endpointId: string) => {
+      const targetEndpoint = endpoints.find((ep) => ep.id === endpointId);
+      if (targetEndpoint) {
+        setCurrentEndpointId(endpointId);
+        setEndpoint(targetEndpoint.url);
+        setHeaders(targetEndpoint.headers);
+
+        // Load latest query and variables from history if available
+        if (targetEndpoint.history.length > 0) {
+          const latestHistory = targetEndpoint.history[0]; // History is sorted by newest first
+          setQuery(latestHistory.query);
+          setVariables(latestHistory.variables);
+        } else {
+          // Set default query and variables if no history
+          setQuery(`query {
   # Enter your GraphQL query here
 }`);
-        setVariables('{}');
+          setVariables("{}");
+        }
+
+        // Update last used timestamp for the target endpoint
+        setEndpoints((prev) =>
+          prev.map((ep) =>
+            ep.id === endpointId ? { ...ep, lastUsed: Date.now() } : ep
+          )
+        );
+
+        toast({
+          title: "Endpoint Switched",
+          description: `Switched to "${targetEndpoint.name}" with latest query`,
+        });
       }
-      
-      // Update last used timestamp for the target endpoint
-      setEndpoints(prev => prev.map(ep => 
-        ep.id === endpointId 
-          ? { ...ep, lastUsed: Date.now() }
-          : ep
-      ));
-      
-      toast({
-        title: 'Endpoint Switched',
-        description: `Switched to "${targetEndpoint.name}" with latest query`,
-      });
-    }
-  }, [endpoints, toast]);
+    },
+    [endpoints, toast]
+  );
 
   // Add new endpoint
-  const addEndpoint = useCallback((name: string, url: string) => {
-    if (!name.trim() || !url.trim()) return;
-    
-    const newEndpoint: EndpointConfig = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      url: url.trim(),
-      headers: [{ key: 'Content-Type', value: 'application/json' }],
-      history: [],
-      lastUsed: Date.now()
-    };
-    setEndpoints(prev => [...prev, newEndpoint]);
-    setCurrentEndpointId(newEndpoint.id);
-    
-    // Set default query and variables for new endpoint
-    setQuery(`query {
+  const addEndpoint = useCallback(
+    (name: string, url: string) => {
+      if (!name.trim() || !url.trim()) return;
+
+      const newEndpoint: EndpointConfig = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        url: url.trim(),
+        headers: [{ key: "Content-Type", value: "application/json" }],
+        history: [],
+        lastUsed: Date.now(),
+      };
+      setEndpoints((prev) => [...prev, newEndpoint]);
+      setCurrentEndpointId(newEndpoint.id);
+
+      // Set default query and variables for new endpoint
+      setQuery(`query {
   # Enter your GraphQL query here
 }`);
-    setVariables('{}');
-    setNewEndpointName('');
-    setNewEndpointUrl('');
-    toast({
-      title: 'Endpoint Added',
-      description: `"${name}" endpoint has been added`,
-    });
-  }, [toast]);
+      setVariables("{}");
+      setNewEndpointName("");
+      setNewEndpointUrl("");
+      toast({
+        title: "Endpoint Added",
+        description: `"${name}" endpoint has been added`,
+      });
+    },
+    [toast]
+  );
 
   // Remove endpoint
-  const removeEndpoint = useCallback((endpointId: string) => {
-    if (endpoints.length <= 1) return; // Don't remove last endpoint
-    
-    setEndpoints(prev => prev.filter(ep => ep.id !== endpointId));
-    if (currentEndpointId === endpointId) {
-      const remaining = endpoints.filter(ep => ep.id !== endpointId);
-      setCurrentEndpointId(remaining[0]?.id || 'default');
-    }
-  }, [endpoints, currentEndpointId]);
+  const removeEndpoint = useCallback(
+    (endpointId: string) => {
+      if (endpoints.length <= 1) return; // Don't remove last endpoint
+
+      setEndpoints((prev) => prev.filter((ep) => ep.id !== endpointId));
+      if (currentEndpointId === endpointId) {
+        const remaining = endpoints.filter((ep) => ep.id !== endpointId);
+        setCurrentEndpointId(remaining[0]?.id || "default");
+      }
+    },
+    [endpoints, currentEndpointId]
+  );
 
   // Add to history after successful query execution
-  const addToHistory = useCallback((query: string, variables: string, endpoint: string) => {
-    const historyItem: QueryHistory = {
-      id: Date.now().toString(),
-      query,
-      variables,
-      endpoint,
-      timestamp: Date.now(),
-      name: extractQueryName(query) || 'Untitled Query'
-    };
+  const addToHistory = useCallback(
+    (query: string, variables: string, endpoint: string) => {
+      const historyItem: QueryHistory = {
+        id: Date.now().toString(),
+        query,
+        variables,
+        endpoint,
+        timestamp: Date.now(),
+        name: extractQueryName(query) || "Untitled Query",
+      };
 
-    // Update history for current endpoint
-    updateCurrentEndpoint({
-      history: [historyItem, ...currentEndpoint.history.filter(item => 
-        !(item.query === query && item.variables === variables && item.endpoint === endpoint)
-      )].slice(0, 50)
-    });
-  }, [currentEndpoint.history, updateCurrentEndpoint]);
+      // Update history for current endpoint
+      updateCurrentEndpoint({
+        history: [
+          historyItem,
+          ...currentEndpoint.history.filter(
+            (item) =>
+              !(
+                item.query === query &&
+                item.variables === variables &&
+                item.endpoint === endpoint
+              )
+          ),
+        ].slice(0, 50),
+      });
+    },
+    [currentEndpoint.history, updateCurrentEndpoint]
+  );
 
   // Extract query name from GraphQL query
   const extractQueryName = useCallback((query: string): string | null => {
@@ -330,41 +378,42 @@ export default function GraphQLClientPage() {
   const testConnection = useCallback(async () => {
     if (!endpoint) {
       toast({
-        title: 'Error',
-        description: 'Please enter a GraphQL endpoint URL',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please enter a GraphQL endpoint URL",
+        variant: "destructive",
       });
       return;
     }
 
     try {
       const headersObj: RequestHeaders = {};
-      headers.forEach(header => {
+      headers.forEach((header) => {
         if (header.key && header.value) {
           headersObj[header.key] = header.value;
         }
       });
-      
+
       const client = new GraphQLClient(endpoint, headersObj);
       const isConnected = await client.testConnection();
-      
+
       if (isConnected) {
         toast({
-          title: 'Success',
-          description: 'Connection to GraphQL endpoint established',
+          title: "Success",
+          description: "Connection to GraphQL endpoint established",
         });
       } else {
         toast({
-          title: 'Connection Failed',
-          description: 'Could not connect to the GraphQL endpoint',
-          variant: 'destructive',
+          title: "Connection Failed",
+          description: "Could not connect to the GraphQL endpoint",
+          variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: 'Connection Error',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: 'destructive',
+        title: "Connection Error",
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
       });
     }
   }, [endpoint, headers, toast]);
@@ -372,27 +421,27 @@ export default function GraphQLClientPage() {
   const executeQuery = useCallback(async () => {
     if (!endpoint) {
       toast({
-        title: 'Error',
-        description: 'Please enter a GraphQL endpoint URL',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please enter a GraphQL endpoint URL",
+        variant: "destructive",
       });
       return;
     }
 
     if (!query.trim()) {
       toast({
-        title: 'Error',
-        description: 'Please enter a GraphQL query',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please enter a GraphQL query",
+        variant: "destructive",
       });
       return;
     }
 
     setLoading(true);
-    
+
     try {
       const headersObj: RequestHeaders = {};
-      headers.forEach(header => {
+      headers.forEach((header) => {
         if (header.key && header.value) {
           headersObj[header.key] = header.value;
         }
@@ -404,9 +453,9 @@ export default function GraphQLClientPage() {
           parsedVariables = JSON.parse(variables);
         } catch (error) {
           toast({
-            title: 'Invalid Variables',
-            description: 'Variables must be valid JSON',
-            variant: 'destructive',
+            title: "Invalid Variables",
+            description: "Variables must be valid JSON",
+            variant: "destructive",
           });
           setLoading(false);
           return;
@@ -424,7 +473,10 @@ export default function GraphQLClientPage() {
       setResponseHeaders(JSON.stringify(headersObj, null, 2));
       setResponseTime(result.responseTime);
       setResponseSize(result.responseSize);
-      setResponseStatus({ status: result.status, statusText: result.statusText });
+      setResponseStatus({
+        status: result.status,
+        statusText: result.statusText,
+      });
 
       // Add to history on successful execution (even with GraphQL errors)
       if (result.status >= 200 && result.status < 300) {
@@ -433,20 +485,29 @@ export default function GraphQLClientPage() {
 
       if (result.response.errors) {
         toast({
-          title: 'GraphQL Errors',
-          description: result.response.errors[0]?.message || 'Query returned errors',
-          variant: 'destructive',
+          title: "GraphQL Errors",
+          description:
+            result.response.errors[0]?.message || "Query returned errors",
+          variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: 'Execution Error',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: 'destructive',
+        title: "Execution Error",
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
       });
-      setResponse(JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Unknown error occurred' 
-      }, null, 2));
+      setResponse(
+        JSON.stringify(
+          {
+            error:
+              error instanceof Error ? error.message : "Unknown error occurred",
+          },
+          null,
+          2
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -458,41 +519,42 @@ export default function GraphQLClientPage() {
       let formatted = query.trim();
       let indentLevel = 0;
       const lines: string[] = [];
-      
+
       // Split into lines first
-      const originalLines = formatted.split('\n');
-      
+      const originalLines = formatted.split("\n");
+
       for (const line of originalLines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        
+
         // Handle closing braces
-        if (trimmed.startsWith('}')) {
+        if (trimmed.startsWith("}")) {
           indentLevel = Math.max(0, indentLevel - 1);
-          lines.push('  '.repeat(indentLevel) + trimmed);
+          lines.push("  ".repeat(indentLevel) + trimmed);
           continue;
         }
-        
+
         // Add line with current indentation
-        lines.push('  '.repeat(indentLevel) + trimmed);
-        
+        lines.push("  ".repeat(indentLevel) + trimmed);
+
         // Handle opening braces
-        if (trimmed.endsWith('{')) {
+        if (trimmed.endsWith("{")) {
           indentLevel++;
         }
       }
-      
-      setQuery(lines.join('\n'));
-      
+
+      setQuery(lines.join("\n"));
+
       toast({
-        title: 'Query Formatted',
-        description: 'GraphQL query has been formatted successfully',
+        title: "Query Formatted",
+        description: "GraphQL query has been formatted successfully",
       });
     } catch (error) {
       toast({
-        title: 'Format Error',
-        description: 'Could not format query. Please check your GraphQL syntax.',
-        variant: 'destructive',
+        title: "Format Error",
+        description:
+          "Could not format query. Please check your GraphQL syntax.",
+        variant: "destructive",
       });
     }
   }, [query, toast]);
@@ -503,160 +565,176 @@ export default function GraphQLClientPage() {
       setVariables(JSON.stringify(parsed, null, 2));
     } catch (error) {
       toast({
-        title: 'Format Error',
-        description: 'Variables must be valid JSON',
-        variant: 'destructive',
+        title: "Format Error",
+        description: "Variables must be valid JSON",
+        variant: "destructive",
       });
     }
   }, [variables, toast]);
 
-  const copyToClipboard = useCallback(async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({
-        title: 'Copied',
-        description: `${label} copied to clipboard`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Copy Failed',
-        description: 'Could not copy to clipboard',
-        variant: 'destructive',
-      });
-    }
-  }, [toast]);
+  const copyToClipboard = useCallback(
+    async (text: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast({
+          title: "Copied",
+          description: `${label} copied to clipboard`,
+        });
+      } catch (error) {
+        toast({
+          title: "Copy Failed",
+          description: "Could not copy to clipboard",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast]
+  );
 
   // Export all data
   const exportData = useCallback(() => {
     const exportData = {
-      version: '1.0',
+      version: "1.0",
       timestamp: Date.now(),
       endpoints,
       currentEndpointId,
-      queryEditorHeight
+      queryEditorHeight,
     };
-    
+
     const dataStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `graphql-client-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `graphql-client-data-${
+      new Date().toISOString().split("T")[0]
+    }.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
-      title: 'Data Exported',
-      description: 'All endpoints and settings have been exported',
+      title: "Data Exported",
+      description: "All endpoints and settings have been exported",
     });
   }, [endpoints, currentEndpointId, queryEditorHeight, toast]);
 
   // Import data
-  const importData = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const importData = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target?.result as string);
-        
-        // Validate imported data structure
-        if (!importedData.endpoints || !Array.isArray(importedData.endpoints)) {
-          throw new Error('Invalid data format: missing or invalid endpoints');
-        }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importedData = JSON.parse(e.target?.result as string);
 
-        // Merge or replace endpoints
-        const newEndpoints = importedData.endpoints;
-        const mergedEndpoints = [...endpoints];
-        
-        newEndpoints.forEach((newEndpoint: EndpointConfig) => {
-          const existingIndex = mergedEndpoints.findIndex(ep => ep.id === newEndpoint.id);
-          if (existingIndex >= 0) {
-            // Replace existing endpoint
-            mergedEndpoints[existingIndex] = newEndpoint;
-          } else {
-            // Add new endpoint
-            mergedEndpoints.push(newEndpoint);
+          // Validate imported data structure
+          if (
+            !importedData.endpoints ||
+            !Array.isArray(importedData.endpoints)
+          ) {
+            throw new Error(
+              "Invalid data format: missing or invalid endpoints"
+            );
           }
-        });
 
-        setEndpoints(mergedEndpoints);
-        
-        // Set current endpoint if provided
-        if (importedData.currentEndpointId) {
-          setCurrentEndpointId(importedData.currentEndpointId);
-        }
-        
-        // Set query editor height if provided
-        if (importedData.queryEditorHeight) {
-          setQueryEditorHeight(importedData.queryEditorHeight);
-        }
+          // Merge or replace endpoints
+          const newEndpoints = importedData.endpoints;
+          const mergedEndpoints = [...endpoints];
 
-        setShowImportExport(false);
-        toast({
-          title: 'Data Imported',
-          description: `Successfully imported ${newEndpoints.length} endpoints`,
-        });
-      } catch (error) {
-        toast({
-          title: 'Import Failed',
-          description: 'Invalid file format or corrupted data',
-          variant: 'destructive',
-        });
-      }
-    };
-    reader.readAsText(file);
-    
-    // Reset file input
-    event.target.value = '';
-  }, [endpoints, toast]);
+          newEndpoints.forEach((newEndpoint: EndpointConfig) => {
+            const existingIndex = mergedEndpoints.findIndex(
+              (ep) => ep.id === newEndpoint.id
+            );
+            if (existingIndex >= 0) {
+              // Replace existing endpoint
+              mergedEndpoints[existingIndex] = newEndpoint;
+            } else {
+              // Add new endpoint
+              mergedEndpoints.push(newEndpoint);
+            }
+          });
+
+          setEndpoints(mergedEndpoints);
+
+          // Set current endpoint if provided
+          if (importedData.currentEndpointId) {
+            setCurrentEndpointId(importedData.currentEndpointId);
+          }
+
+          // Set query editor height if provided
+          if (importedData.queryEditorHeight) {
+            setQueryEditorHeight(importedData.queryEditorHeight);
+          }
+
+          setShowImportExport(false);
+          toast({
+            title: "Data Imported",
+            description: `Successfully imported ${newEndpoints.length} endpoints`,
+          });
+        } catch (error) {
+          toast({
+            title: "Import Failed",
+            description: "Invalid file format or corrupted data",
+            variant: "destructive",
+          });
+        }
+      };
+      reader.readAsText(file);
+
+      // Reset file input
+      event.target.value = "";
+    },
+    [endpoints, toast]
+  );
 
   // Export current endpoint only
   const exportCurrentEndpoint = useCallback(() => {
     if (!currentEndpoint) return;
-    
+
     const exportData = {
-      version: '1.0',
+      version: "1.0",
       timestamp: Date.now(),
-      endpoint: currentEndpoint
+      endpoint: currentEndpoint,
     };
-    
+
     const dataStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
+    const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `${currentEndpoint.name.toLowerCase().replace(/\s+/g, '-')}-endpoint.json`;
+    a.download = `${currentEndpoint.name
+      .toLowerCase()
+      .replace(/\s+/g, "-")}-endpoint.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
-      title: 'Endpoint Exported',
+      title: "Endpoint Exported",
       description: `"${currentEndpoint.name}" endpoint has been exported`,
     });
   }, [currentEndpoint, toast]);
-
-
 
   // Resize handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current || !containerRef.current) return;
-    
+
     const containerRect = containerRef.current.getBoundingClientRect();
-    const newHeightPercent = ((e.clientY - containerRect.top) / containerRect.height) * 100;
-    
+    const newHeightPercent =
+      ((e.clientY - containerRect.top) / containerRect.height) * 100;
+
     // Limit between 20% and 80%
     const clampedHeight = Math.max(20, Math.min(80, newHeightPercent));
     setQueryEditorHeight(clampedHeight);
@@ -664,44 +742,50 @@ export default function GraphQLClientPage() {
 
   const handleMouseUp = useCallback(() => {
     isDragging.current = false;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
   }, [handleMouseMove]);
 
   // Save to localStorage when height changes
   useEffect(() => {
-    localStorage.setItem('graphql-client-query-height', queryEditorHeight.toString());
+    localStorage.setItem(
+      "graphql-client-query-height",
+      queryEditorHeight.toString()
+    );
   }, [queryEditorHeight]);
 
   // Cleanup event listeners
   useEffect(() => {
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
 
   // Load query from history
-  const loadFromHistory = useCallback((historyItem: QueryHistory) => {
-    setQuery(historyItem.query);
-    setVariables(historyItem.variables);
-    if (historyItem.endpoint !== endpoint) {
-      setEndpoint(historyItem.endpoint);
-      updateCurrentEndpoint({ url: historyItem.endpoint });
-    }
-    setShowHistory(false);
-    toast({
-      title: 'History Loaded',
-      description: `Loaded "${historyItem.name}" from history`,
-    });
-  }, [toast, endpoint, updateCurrentEndpoint]);
+  const loadFromHistory = useCallback(
+    (historyItem: QueryHistory) => {
+      setQuery(historyItem.query);
+      setVariables(historyItem.variables);
+      if (historyItem.endpoint !== endpoint) {
+        setEndpoint(historyItem.endpoint);
+        updateCurrentEndpoint({ url: historyItem.endpoint });
+      }
+      setShowHistory(false);
+      toast({
+        title: "History Loaded",
+        description: `Loaded "${historyItem.name}" from history`,
+      });
+    },
+    [toast, endpoint, updateCurrentEndpoint]
+  );
 
   // Clear history for current endpoint
   const clearHistory = useCallback(() => {
     updateCurrentEndpoint({ history: [] });
     toast({
-      title: 'History Cleared',
-      description: 'All query history has been cleared for this endpoint',
+      title: "History Cleared",
+      description: "All query history has been cleared for this endpoint",
     });
   }, [toast, updateCurrentEndpoint]);
 
@@ -709,9 +793,9 @@ export default function GraphQLClientPage() {
   const fetchSchema = useCallback(async () => {
     if (!endpoint) {
       toast({
-        title: 'Error',
-        description: 'Please enter a GraphQL endpoint first',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please enter a GraphQL endpoint first",
+        variant: "destructive",
       });
       return;
     }
@@ -719,10 +803,10 @@ export default function GraphQLClientPage() {
     setLoadingSchema(true);
     try {
       const client = new GraphQLClient(endpoint);
-      
+
       // Set headers for the introspection query
       const headersObj: RequestHeaders = {};
-      headers.forEach(header => {
+      headers.forEach((header) => {
         if (header.key && header.value) {
           headersObj[header.key] = header.value;
         }
@@ -816,24 +900,27 @@ export default function GraphQLClientPage() {
       });
 
       if (result.response.errors) {
-        throw new Error(result.response.errors[0]?.message || 'Failed to fetch schema');
+        throw new Error(
+          result.response.errors[0]?.message || "Failed to fetch schema"
+        );
       }
 
       if (result.response.data?.__schema) {
         setSchema(result.response.data.__schema);
         // Don't auto-open docs on schema load
         toast({
-          title: 'Schema Loaded',
-          description: 'GraphQL schema documentation is now available',
+          title: "Schema Loaded",
+          description: "GraphQL schema documentation is now available",
         });
       } else {
-        throw new Error('Invalid schema response');
+        throw new Error("Invalid schema response");
       }
     } catch (error) {
       toast({
-        title: 'Schema Error',
-        description: error instanceof Error ? error.message : 'Failed to load schema',
-        variant: 'destructive',
+        title: "Schema Error",
+        description:
+          error instanceof Error ? error.message : "Failed to load schema",
+        variant: "destructive",
       });
     } finally {
       setLoadingSchema(false);
@@ -842,14 +929,14 @@ export default function GraphQLClientPage() {
 
   // Auto-load schema when endpoint changes
   useEffect(() => {
-    if (endpoint && endpoint.trim() !== '') {
+    if (endpoint && endpoint.trim() !== "") {
       fetchSchema();
     }
   }, [endpoint, fetchSchema]);
 
   // Toggle type expansion in docs
   const toggleTypeExpansion = useCallback((typeName: string) => {
-    setExpandedTypes(prev => {
+    setExpandedTypes((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(typeName)) {
         newSet.delete(typeName);
@@ -861,106 +948,179 @@ export default function GraphQLClientPage() {
   }, []);
 
   // Get user-defined types (filter out built-in GraphQL types and root types)
-  const getUserDefinedTypes = useCallback((types: GraphQLType[]) => {
-    const rootTypeNames = [];
-    if (schema?.queryType) rootTypeNames.push(schema.queryType.name);
-    if (schema?.mutationType) rootTypeNames.push(schema.mutationType.name);
-    if (schema?.subscriptionType) rootTypeNames.push(schema.subscriptionType.name);
-    
-    return types.filter(type => 
-      !type.name?.startsWith('__') && 
-      !['String', 'Int', 'Float', 'Boolean', 'ID'].includes(type.name || '') &&
-      !rootTypeNames.includes(type.name || '')
-    );
-  }, [schema]);
+  const getUserDefinedTypes = useCallback(
+    (types: GraphQLType[]) => {
+      const rootTypeNames: string[] = [];
+      if (schema?.queryType) rootTypeNames.push(schema.queryType.name);
+      if (schema?.mutationType) rootTypeNames.push(schema.mutationType.name);
+      if (schema?.subscriptionType)
+        rootTypeNames.push(schema.subscriptionType.name);
+
+      return types.filter(
+        (type) =>
+          !type.name?.startsWith("__") &&
+          !["String", "Int", "Float", "Boolean", "ID"].includes(
+            type.name || ""
+          ) &&
+          !rootTypeNames.includes(type.name || "")
+      );
+    },
+    [schema]
+  );
+
+  // Filter types based on search query
+  const filterTypesWithSearch = useCallback(
+    (types: GraphQLType[], query: string) => {
+      if (!query.trim()) return types;
+      const lowerQuery = query.toLowerCase();
+      return types.filter((type) => {
+        // Search in type name
+        if (type.name?.toLowerCase().includes(lowerQuery)) return true;
+        // Search in type description
+        if (type.description?.toLowerCase().includes(lowerQuery)) return true;
+        // Search in field names and descriptions
+        if (type.fields) {
+          return type.fields.some((field) => {
+            if (field.name.toLowerCase().includes(lowerQuery)) return true;
+            if (field.description?.toLowerCase().includes(lowerQuery))
+              return true;
+            return false;
+          });
+        }
+        return false;
+      });
+    },
+    []
+  );
+
+  // Filter fields based on search query
+  const filterFieldsWithSearch = useCallback(
+    (fields: GraphQLField[], query: string) => {
+      if (!query.trim()) return fields;
+      const lowerQuery = query.toLowerCase();
+      return fields.filter((field) => {
+        // Search in field name
+        if (field.name.toLowerCase().includes(lowerQuery)) return true;
+        // Search in field description
+        if (field.description?.toLowerCase().includes(lowerQuery)) return true;
+        // Search in field type name
+        if (renderType(field.type).toLowerCase().includes(lowerQuery))
+          return true;
+        return false;
+      });
+    },
+    []
+  );
 
   // Find type by name in schema
-  const findTypeByName = useCallback((typeName: string): GraphQLType | null => {
-    if (!schema) return null;
-    return schema.types.find(type => type.name === typeName) || null;
-  }, [schema]);
+  const findTypeByName = useCallback(
+    (typeName: string): GraphQLType | null => {
+      if (!schema) return null;
+      return schema.types.find((type) => type.name === typeName) || null;
+    },
+    [schema]
+  );
 
   // Handle clicking on a type name
-  const handleTypeClick = useCallback((typeName: string, event?: React.MouseEvent) => {
-    if (event) {
-      event.stopPropagation();
-    }
-    const type = findTypeByName(typeName);
-    if (type) {
-      setSelectedType(type);
-      setExpandedTypes(prev => new Set([...prev, typeName]));
-      
-      // Scroll to the type in the types list
-      setTimeout(() => {
-        const element = document.getElementById(`type-${typeName}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
-    }
-  }, [findTypeByName]);
+  const handleTypeClick = useCallback(
+    (typeName: string, event?: React.MouseEvent) => {
+      if (event) {
+        event.stopPropagation();
+      }
+      const type = findTypeByName(typeName);
+      if (type) {
+        setSelectedType(type);
+        setExpandedTypes(
+          (prev) => new Set(Array.from(prev).concat([typeName]))
+        );
+        setSearchQuery(""); // Clear search when navigating to a specific type
+
+        // Scroll to the type in the types list
+        setTimeout(() => {
+          const element = document.getElementById(`type-${typeName}`);
+          if (element) {
+            element.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 100);
+      }
+    },
+    [findTypeByName]
+  );
 
   // Render GraphQL type string
   const renderType = useCallback((type: GraphQLType): string => {
-    if (type.kind === 'NON_NULL') {
-      return renderType(type.ofType!) + '!';
+    if (type.kind === "NON_NULL") {
+      return renderType(type.ofType!) + "!";
     }
-    if (type.kind === 'LIST') {
-      return '[' + renderType(type.ofType!) + ']';
+    if (type.kind === "LIST") {
+      return "[" + renderType(type.ofType!) + "]";
     }
-    return type.name || 'Unknown';
+    return type.name || "Unknown";
   }, []);
 
   // Render clickable type with navigation
-  const renderClickableType = useCallback((type: GraphQLType): React.ReactNode => {
-    if (type.kind === 'NON_NULL') {
-      return (
-        <>
-          {renderClickableType(type.ofType!)}
-          <span>!</span>
-        </>
+  const renderClickableType = useCallback(
+    (type: GraphQLType): React.ReactNode => {
+      if (type.kind === "NON_NULL") {
+        return (
+          <>
+            {renderClickableType(type.ofType!)}
+            <span>!</span>
+          </>
+        );
+      }
+      if (type.kind === "LIST") {
+        return (
+          <>
+            <span>[</span>
+            {renderClickableType(type.ofType!)}
+            <span>]</span>
+          </>
+        );
+      }
+
+      const typeName = type.name || "Unknown";
+      const isBuiltIn = ["String", "Int", "Float", "Boolean", "ID"].includes(
+        typeName
       );
-    }
-    if (type.kind === 'LIST') {
+
+      if (isBuiltIn) {
+        return (
+          <span className="text-orange-600 font-mono text-sm font-semibold">
+            {typeName}
+          </span>
+        );
+      }
+
+      // Check if this type exists in schema for navigation
+      const targetType = findTypeByName(typeName);
+
+      if (targetType) {
+        return (
+          <span
+            className="text-orange-600 font-mono text-sm font-semibold cursor-pointer hover:underline hover:bg-orange-50 px-1 rounded transition-colors"
+            onClick={(e) => handleTypeClick(typeName, e)}
+          >
+            {typeName}
+          </span>
+        );
+      }
+
       return (
-        <>
-          <span>[</span>
-          {renderClickableType(type.ofType!)}
-          <span>]</span>
-        </>
-      );
-    }
-    
-    const typeName = type.name || 'Unknown';
-    const isBuiltIn = ['String', 'Int', 'Float', 'Boolean', 'ID'].includes(typeName);
-    
-    if (isBuiltIn) {
-      return <span className="text-orange-600 font-mono text-sm font-semibold">{typeName}</span>;
-    }
-    
-    // Check if this type exists in schema for navigation
-    const targetType = findTypeByName(typeName);
-    
-    if (targetType) {
-      return (
-        <span 
-          className="text-orange-600 font-mono text-sm font-semibold cursor-pointer hover:underline hover:bg-orange-50 px-1 rounded transition-colors"
-          onClick={(e) => handleTypeClick(typeName, e)}
-        >
+        <span className="text-orange-600 font-mono text-sm font-semibold">
           {typeName}
         </span>
       );
-    }
-    
-    return <span className="text-orange-600 font-mono text-sm font-semibold">{typeName}</span>;
-  }, [findTypeByName, handleTypeClick]);
+    },
+    [findTypeByName, handleTypeClick]
+  );
 
   // Format timestamp for display
   const formatTimestamp = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
       const minutes = Math.floor(diffInHours * 60);
       return `${minutes}m ago`;
@@ -979,15 +1139,17 @@ export default function GraphQLClientPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-                  <div className="w-3 h-3 border border-white rounded-full"></div>
+                <div className="w-8 h-8 border-gray-300 border rounded flex items-center justify-center">
+                  <img src={logo} alt="logo" width={40} height={40} />
                 </div>
-                <h1 className="text-xl font-semibold text-gray-900">GraphQL Client</h1>
+                <h1 className="text-xl font-semibold text-gray-900">
+                  GraphQL Client
+                </h1>
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setShowImportExport(true)}
                 className="text-xs"
@@ -1007,7 +1169,9 @@ export default function GraphQLClientPage() {
           {/* Endpoint Management */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-3">
-              <Label className="text-sm font-medium text-gray-700">GraphQL Endpoints</Label>
+              <Label className="text-sm font-medium text-gray-700">
+                GraphQL Endpoints
+              </Label>
               <Button
                 variant="ghost"
                 size="sm"
@@ -1018,7 +1182,7 @@ export default function GraphQLClientPage() {
                 Manage
               </Button>
             </div>
-            
+
             {/* Current Endpoint Selector */}
             <div className="space-y-2">
               <select
@@ -1032,7 +1196,7 @@ export default function GraphQLClientPage() {
                   </option>
                 ))}
               </select>
-              
+
               {/* Current Endpoint URL Input */}
               <div className="flex space-x-2">
                 <Input
@@ -1073,14 +1237,16 @@ export default function GraphQLClientPage() {
                     type="text"
                     placeholder="Header name"
                     value={header.key}
-                    onChange={(e) => updateHeader(index, 'key', e.target.value)}
+                    onChange={(e) => updateHeader(index, "key", e.target.value)}
                     className="flex-1 text-xs"
                   />
                   <Input
                     type="text"
                     placeholder="Header value"
                     value={header.value}
-                    onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                    onChange={(e) =>
+                      updateHeader(index, "value", e.target.value)
+                    }
                     className="flex-1 text-xs"
                   />
                   <Button
@@ -1125,14 +1291,16 @@ export default function GraphQLClientPage() {
         {/* Main Content */}
         <div ref={containerRef} className="flex-1 flex flex-col">
           {/* Query Editor Section */}
-          <div 
+          <div
             className="flex flex-col bg-white border-b border-gray-200"
             style={{ height: `${queryEditorHeight}%` }}
           >
             {/* Query Editor Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center space-x-4">
-                <h2 className="text-sm font-medium text-gray-700">Query Editor</h2>
+                <h2 className="text-sm font-medium text-gray-700">
+                  Query Editor
+                </h2>
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
@@ -1141,12 +1309,12 @@ export default function GraphQLClientPage() {
                     className="text-xs"
                   >
                     <Code className="w-3 h-3 mr-1" />
-                    Prettify
+                    Format
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => copyToClipboard(query, 'Query')}
+                    onClick={() => copyToClipboard(query, "Query")}
                     className="text-xs"
                   >
                     <Copy className="w-3 h-3 mr-1" />
@@ -1169,6 +1337,9 @@ export default function GraphQLClientPage() {
                         fetchSchema();
                       }
                       setShowDocs(!showDocs);
+                      if (!showDocs) {
+                        setSearchQuery(""); // Clear search when opening docs
+                      }
                     }}
                     disabled={loadingSchema}
                     className="text-xs"
@@ -1182,7 +1353,11 @@ export default function GraphQLClientPage() {
                   </Button>
                 </div>
               </div>
-              <Button onClick={executeQuery} disabled={loading} className="bg-green-600 hover:bg-green-700">
+              <Button
+                onClick={executeQuery}
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700"
+              >
                 {loading ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
@@ -1199,7 +1374,7 @@ export default function GraphQLClientPage() {
                 onChange={setQuery}
                 language="graphql"
                 height="100%"
-                schema={schema}
+                schema={schema || undefined}
               />
             </div>
           </div>
@@ -1214,7 +1389,7 @@ export default function GraphQLClientPage() {
           </div>
 
           {/* Results Section */}
-          <div 
+          <div
             className="flex flex-col bg-white"
             style={{ height: `${100 - queryEditorHeight}%` }}
           >
@@ -1228,12 +1403,17 @@ export default function GraphQLClientPage() {
                   <span>{responseSize}</span>
                   <span>•</span>
                   <span className="flex items-center">
-                    <div className={`w-2 h-2 rounded-full mr-1 ${
-                      responseStatus.status >= 200 && responseStatus.status < 300 
-                        ? 'bg-green-500' 
-                        : 'bg-red-500'
-                    }`}></div>
-                    <span>{responseStatus.status} {responseStatus.statusText}</span>
+                    <div
+                      className={`w-2 h-2 rounded-full mr-1 ${
+                        responseStatus.status >= 200 &&
+                        responseStatus.status < 300
+                          ? "bg-green-500"
+                          : "bg-red-500"
+                      }`}
+                    ></div>
+                    <span>
+                      {responseStatus.status} {responseStatus.statusText}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -1241,7 +1421,7 @@ export default function GraphQLClientPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => copyToClipboard(response, 'Response')}
+                  onClick={() => copyToClipboard(response, "Response")}
                   className="text-xs"
                   disabled={!response}
                 >
@@ -1267,19 +1447,20 @@ export default function GraphQLClientPage() {
                   <TabsTrigger value="response">Response</TabsTrigger>
                   <TabsTrigger value="headers">Headers</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="response" className="flex-1 mt-0">
                   <div className="h-full bg-gray-50 overflow-auto">
                     <pre className="p-4 text-sm font-mono text-gray-800 whitespace-pre-wrap">
-                      {response || 'No response yet. Execute a query to see results.'}
+                      {response ||
+                        "No response yet. Execute a query to see results."}
                     </pre>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="headers" className="flex-1 mt-0">
                   <div className="h-full bg-gray-50 overflow-auto">
                     <pre className="p-4 text-sm font-mono text-gray-800 whitespace-pre-wrap">
-                      {responseHeaders || 'No headers to display.'}
+                      {responseHeaders || "No headers to display."}
                     </pre>
                   </div>
                 </TabsContent>
@@ -1297,18 +1478,23 @@ export default function GraphQLClientPage() {
             <div className="flex items-center space-x-3">
               {selectedType ? (
                 <button
-                  onClick={() => setSelectedType(null)}
+                  onClick={() => {
+                    setSelectedType(null);
+                    setSearchQuery(""); // Clear search when going back to schema overview
+                  }}
                   className="flex items-center text-blue-600 hover:text-blue-800 text-sm"
                 >
                   <ChevronLeft className="w-4 h-4 mr-1" />
                   <span>Schema</span>
                 </button>
               ) : (
-                <span className="text-gray-600 text-sm">Documentation Explorer</span>
+                <span className="text-gray-600 text-sm">
+                  Documentation Explorer
+                </span>
               )}
             </div>
             <h1 className="text-lg font-semibold text-gray-900 flex-1 text-center">
-              {selectedType ? selectedType.name : 'Documentation Explorer'}
+              {selectedType ? selectedType.name : "Documentation Explorer"}
             </h1>
             <Button
               variant="ghost"
@@ -1326,12 +1512,18 @@ export default function GraphQLClientPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={selectedType ? `Search ${selectedType.name}...` : "Search Schema..."}
+                placeholder={
+                  selectedType
+                    ? `Search ${selectedType.name}...`
+                    : "Search Schema..."
+                }
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
           </div>
-          
+
           <ScrollArea className="flex-1">
             <div className="p-4">
               {selectedType ? (
@@ -1340,17 +1532,21 @@ export default function GraphQLClientPage() {
                   {/* Type Description */}
                   {selectedType.description && (
                     <div className="mb-6 p-4 bg-gray-50 rounded-md">
-                      <p className="text-sm text-gray-700">{selectedType.description}</p>
+                      <p className="text-sm text-gray-700">
+                        {selectedType.description}
+                      </p>
                     </div>
                   )}
 
                   {/* IMPLEMENTS Section */}
-                  {selectedType.kind === 'OBJECT' && (
+                  {selectedType.kind === "OBJECT" && (
                     <div className="mb-6">
                       <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
                         IMPLEMENTS
                       </h3>
-                      <div className="text-sm text-orange-600 font-mono">Node</div>
+                      <div className="text-sm text-orange-600 font-mono">
+                        Node
+                      </div>
                     </div>
                   )}
 
@@ -1361,56 +1557,85 @@ export default function GraphQLClientPage() {
                         FIELDS
                       </h3>
                       <div className="space-y-4">
-                        {selectedType.fields.map((field) => (
-                          <div key={field.name} className="border-b border-gray-100 pb-4 last:border-b-0">
+                        {filterFieldsWithSearch(
+                          selectedType.fields,
+                          searchQuery
+                        ).map((field) => (
+                          <div
+                            key={field.name}
+                            className="border-b border-gray-100 pb-4 last:border-b-0"
+                          >
                             <div className="flex items-baseline mb-1">
-                              <span className="text-blue-600 font-mono text-sm mr-1">{field.name}</span>
+                              <span className="text-blue-600 font-mono text-sm mr-1">
+                                {field.name}
+                              </span>
                               {field.args && field.args.length > 0 && (
                                 <span className="text-gray-500 text-sm">
-                                  ({field.args.map((arg, index) => (
+                                  (
+                                  {field.args.map((arg, index) => (
                                     <span key={arg.name}>
-                                      {index > 0 && ', '}
-                                      <span className="text-gray-700">{arg.name}</span>
+                                      {index > 0 && ", "}
+                                      <span className="text-gray-700">
+                                        {arg.name}
+                                      </span>
                                       <span>: </span>
                                       {renderClickableType(arg.type)}
                                     </span>
-                                  ))})
+                                  ))}
+                                  )
                                 </span>
                               )}
-                              <span className="text-gray-500 text-sm mx-1">:</span>
-                              <span>
-                                {renderClickableType(field.type)}
+                              <span className="text-gray-500 text-sm mx-1">
+                                :
                               </span>
+                              <span>{renderClickableType(field.type)}</span>
                             </div>
                             {field.description && (
-                              <p className="text-sm text-gray-600 ml-0">{field.description}</p>
+                              <p className="text-sm text-gray-600 ml-0">
+                                {field.description}
+                              </p>
                             )}
                           </div>
                         ))}
                       </div>
+                      {searchQuery &&
+                        filterFieldsWithSearch(selectedType.fields, searchQuery)
+                          .length === 0 && (
+                          <div className="text-center text-gray-500 py-8">
+                            <p className="text-sm">
+                              No fields found matching "{searchQuery}"
+                            </p>
+                          </div>
+                        )}
                     </div>
                   )}
 
                   {/* Enum Values */}
-                  {selectedType.enumValues && selectedType.enumValues.length > 0 && (
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
-                        VALUES
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedType.enumValues.map((enumValue) => (
-                          <div key={enumValue.name} className="border-b border-gray-100 pb-2 last:border-b-0">
-                            <div className="text-orange-600 font-mono text-sm font-semibold">
-                              {enumValue.name}
+                  {selectedType.enumValues &&
+                    selectedType.enumValues.length > 0 && (
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">
+                          VALUES
+                        </h3>
+                        <div className="space-y-2">
+                          {selectedType.enumValues.map((enumValue) => (
+                            <div
+                              key={enumValue.name}
+                              className="border-b border-gray-100 pb-2 last:border-b-0"
+                            >
+                              <div className="text-orange-600 font-mono text-sm font-semibold">
+                                {enumValue.name}
+                              </div>
+                              {enumValue.description && (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {enumValue.description}
+                                </p>
+                              )}
                             </div>
-                            {enumValue.description && (
-                              <p className="text-sm text-gray-600 mt-1">{enumValue.description}</p>
-                            )}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               ) : (
                 // Schema Overview
@@ -1418,7 +1643,8 @@ export default function GraphQLClientPage() {
                   {/* Schema Description */}
                   <div className="mb-6 p-4 bg-gray-50 rounded-md">
                     <p className="text-sm text-gray-700">
-                      A GraphQL schema provides a root type for each kind of operation.
+                      A GraphQL schema provides a root type for each kind of
+                      operation.
                     </p>
                   </div>
 
@@ -1429,33 +1655,45 @@ export default function GraphQLClientPage() {
                     </h3>
                     <div className="space-y-2">
                       {schema.queryType && (
-                        <div 
+                        <div
                           className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
-                          onClick={() => handleTypeClick(schema.queryType!.name)}
+                          onClick={() =>
+                            handleTypeClick(schema.queryType!.name)
+                          }
                         >
-                          <span className="text-red-600 text-sm mr-2">query:</span>
+                          <span className="text-red-600 text-sm mr-2">
+                            query:
+                          </span>
                           <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
                             {schema.queryType.name}
                           </span>
                         </div>
                       )}
                       {schema.mutationType && (
-                        <div 
+                        <div
                           className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
-                          onClick={() => handleTypeClick(schema.mutationType!.name)}
+                          onClick={() =>
+                            handleTypeClick(schema.mutationType!.name)
+                          }
                         >
-                          <span className="text-red-600 text-sm mr-2">mutation:</span>
+                          <span className="text-red-600 text-sm mr-2">
+                            mutation:
+                          </span>
                           <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
                             {schema.mutationType.name}
                           </span>
                         </div>
                       )}
                       {schema.subscriptionType && (
-                        <div 
+                        <div
                           className="flex items-center cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
-                          onClick={() => handleTypeClick(schema.subscriptionType!.name)}
+                          onClick={() =>
+                            handleTypeClick(schema.subscriptionType!.name)
+                          }
                         >
-                          <span className="text-red-600 text-sm mr-2">subscription:</span>
+                          <span className="text-red-600 text-sm mr-2">
+                            subscription:
+                          </span>
                           <span className="text-orange-600 font-mono text-sm font-semibold hover:underline">
                             {schema.subscriptionType.name}
                           </span>
@@ -1470,8 +1708,11 @@ export default function GraphQLClientPage() {
                       ALL TYPES
                     </h3>
                     <div className="space-y-2">
-                      {getUserDefinedTypes(schema.types).map((type) => (
-                        <div 
+                      {filterTypesWithSearch(
+                        getUserDefinedTypes(schema.types),
+                        searchQuery
+                      ).map((type) => (
+                        <div
                           key={type.name}
                           className="cursor-pointer hover:bg-gray-50 p-2 rounded-md transition-colors"
                           onClick={() => handleTypeClick(type.name!)}
@@ -1482,6 +1723,17 @@ export default function GraphQLClientPage() {
                         </div>
                       ))}
                     </div>
+                    {searchQuery &&
+                      filterTypesWithSearch(
+                        getUserDefinedTypes(schema.types),
+                        searchQuery
+                      ).length === 0 && (
+                        <div className="text-center text-gray-500 py-8">
+                          <p className="text-sm">
+                            No types found matching "{searchQuery}"
+                          </p>
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -1526,7 +1778,8 @@ export default function GraphQLClientPage() {
           {/* Action Bar */}
           <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              {currentEndpoint.history.length} {currentEndpoint.history.length === 1 ? 'query' : 'queries'} saved
+              {currentEndpoint.history.length}{" "}
+              {currentEndpoint.history.length === 1 ? "query" : "queries"} saved
             </span>
             <Button
               variant="outline"
@@ -1538,15 +1791,18 @@ export default function GraphQLClientPage() {
               Clear All
             </Button>
           </div>
-          
+
           <ScrollArea className="flex-1">
             <div className="p-4">
               {currentEndpoint.history.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 pt-20">
                   <Clock className="w-16 h-16 mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">No query history yet</h3>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No query history yet
+                  </h3>
                   <p className="text-sm text-gray-400 text-center">
-                    Execute GraphQL queries to build your history.<br />
+                    Execute GraphQL queries to build your history.
+                    <br />
                     Your queries will be automatically saved here.
                   </p>
                 </div>
@@ -1569,10 +1825,10 @@ export default function GraphQLClientPage() {
                       <div className="text-xs text-gray-600 font-mono bg-gray-100 p-3 rounded border overflow-hidden">
                         <pre className="whitespace-pre-wrap text-wrap break-words">
                           {item.query.trim().substring(0, 200)}
-                          {item.query.length > 200 ? '...' : ''}
+                          {item.query.length > 200 ? "..." : ""}
                         </pre>
                       </div>
-                      {item.variables && item.variables !== '{}' && (
+                      {item.variables && item.variables !== "{}" && (
                         <div className="text-xs text-blue-600 mt-2 flex items-center">
                           <Code className="w-3 h-3 mr-1" />
                           Has variables
@@ -1620,14 +1876,14 @@ export default function GraphQLClientPage() {
                   type="text"
                   placeholder="Header name"
                   value={header.key}
-                  onChange={(e) => updateHeader(index, 'key', e.target.value)}
+                  onChange={(e) => updateHeader(index, "key", e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <input
                   type="text"
                   placeholder="Header value"
                   value={header.value}
-                  onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                  onChange={(e) => updateHeader(index, "value", e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <Button
@@ -1662,11 +1918,13 @@ export default function GraphQLClientPage() {
               Endpoint Manager
             </SheetTitle>
           </SheetHeader>
-          
+
           <div className="flex flex-col h-full">
             {/* Add New Endpoint */}
             <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Add New Endpoint</h3>
+              <h3 className="text-sm font-medium text-gray-700 mb-3">
+                Add New Endpoint
+              </h3>
               <div className="space-y-3">
                 <Input
                   placeholder="Endpoint name (e.g., My GraphQL API)"
@@ -1704,8 +1962,8 @@ export default function GraphQLClientPage() {
                       key={ep.id}
                       className={`p-4 border rounded-lg transition-colors ${
                         ep.id === currentEndpointId
-                          ? 'border-blue-300 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? "border-blue-300 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -1714,23 +1972,25 @@ export default function GraphQLClientPage() {
                             <Input
                               value={ep.name}
                               onChange={(e) => {
-                                setEndpoints(prev => prev.map(endpoint => 
-                                  endpoint.id === ep.id 
-                                    ? { ...endpoint, name: e.target.value }
-                                    : endpoint
-                                ));
+                                setEndpoints((prev) =>
+                                  prev.map((endpoint) =>
+                                    endpoint.id === ep.id
+                                      ? { ...endpoint, name: e.target.value }
+                                      : endpoint
+                                  )
+                                );
                               }}
                               className="text-sm font-medium mb-1"
                               onBlur={() => setEditingEndpoint(null)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
+                                if (e.key === "Enter") {
                                   setEditingEndpoint(null);
                                 }
                               }}
                               autoFocus
                             />
                           ) : (
-                            <h4 
+                            <h4
                               className="text-sm font-medium text-gray-900 truncate cursor-pointer"
                               onClick={() => setEditingEndpoint(ep.id)}
                             >
@@ -1742,12 +2002,15 @@ export default function GraphQLClientPage() {
                               )}
                             </h4>
                           )}
-                          <p className="text-xs text-gray-500 truncate">{ep.url}</p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {ep.url}
+                          </p>
                           <div className="flex items-center text-xs text-gray-400 mt-1">
                             <History className="w-3 h-3 mr-1" />
                             {ep.history.length} queries
                             <span className="mx-2">•</span>
-                            Last used: {new Date(ep.lastUsed).toLocaleDateString()}
+                            Last used:{" "}
+                            {new Date(ep.lastUsed).toLocaleDateString()}
                           </div>
                         </div>
                         <div className="flex items-center space-x-1 ml-2">
@@ -1857,17 +2120,24 @@ export default function GraphQLClientPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-500">
-                Import will merge with existing data. Duplicate endpoints will be replaced.
+                Import will merge with existing data. Duplicate endpoints will
+                be replaced.
               </p>
             </div>
 
             {/* Current Data Info */}
             <div className="border-t pt-4">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">Current Data</h3>
+              <h3 className="text-sm font-medium text-gray-900 mb-2">
+                Current Data
+              </h3>
               <div className="text-xs text-gray-600 space-y-1">
                 <div>Endpoints: {endpoints.length}</div>
-                <div>Total History: {endpoints.reduce((sum, ep) => sum + ep.history.length, 0)} queries</div>
-                <div>Current: {currentEndpoint?.name || 'None'}</div>
+                <div>
+                  Total History:{" "}
+                  {endpoints.reduce((sum, ep) => sum + ep.history.length, 0)}{" "}
+                  queries
+                </div>
+                <div>Current: {currentEndpoint?.name || "None"}</div>
               </div>
             </div>
           </div>

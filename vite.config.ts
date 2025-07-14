@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
+// Determine if we're running in Tauri environment
+const isTauri = process.env.TAURI_ENV_PLATFORM !== undefined;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -29,9 +32,15 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    port: 5173,
+    strictPort: true,
+    host: isTauri ? false : undefined,
+    hmr: isTauri ? { port: 1421 } : undefined,
     fs: {
       strict: true,
       deny: ["**/.*"],
     },
   },
+  clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_ENV_*"],
 });
