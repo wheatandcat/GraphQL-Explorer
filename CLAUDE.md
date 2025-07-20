@@ -120,7 +120,7 @@ npm run db:push     # Push schema changes to database
 ### Production Environment
 
 - **Single Express server** serving both static files and API
-- **Port**: Uses `PORT` environment variable (default: 5000)
+- **Port**: Uses `PORT` environment variable (default: 8081)
 - **Optimized builds** with code splitting
 
 ## Data Management

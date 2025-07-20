@@ -14,7 +14,7 @@ export default defineConfig({
     process.env.REPL_ID !== undefined
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
+            m.cartographer()
           ),
         ]
       : []),
@@ -39,6 +39,52 @@ export default defineConfig({
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    proxy: {
+      // localhost GraphQL endpoints proxy - catch all proxy-graphql paths
+      "/proxy-graphql": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        rewrite: (path) => {
+          const newPath = path.replace("/proxy-graphql", "");
+          console.log("Path rewrite:", path, "->", newPath);
+          return newPath;
+        },
+        configure: (proxy) => {
+          proxy.on("error", (err, req, res) => {
+            console.log("Proxy error:", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req, res) => {
+            console.log(
+              "Proxying request:",
+              req.method,
+              req.url,
+              "->",
+              "localhost:8080" + proxyReq.path
+            );
+          });
+          proxy.on("proxyRes", (proxyRes, req, res) => {
+            console.log("Proxy response:", proxyRes.statusCode, req.url);
+          });
+        },
+      },
+      // General localhost:8080 proxy fallback
+      "/api/localhost8080": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/localhost8080/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq, req, res) => {
+            console.log(
+              "Fallback proxy request:",
+              req.method,
+              req.url,
+              "->",
+              "localhost:8080" + proxyReq.path
+            );
+          });
+        },
+      },
     },
   },
   clearScreen: false,
