@@ -17,8 +17,6 @@ import {
   History,
   Clock,
   BookOpen,
-  ChevronDown,
-  ChevronRight,
   ChevronLeft,
   Search,
   Database,
@@ -28,14 +26,8 @@ import {
   Download,
   Upload,
   FileDown,
-  FileUp,
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Sheet,
   SheetContent,
@@ -190,7 +182,7 @@ export default function GraphQLClientPage() {
   const [schema, setSchema] = useState<GraphQLSchema | null>(null);
   const [showDocs, setShowDocs] = useState(false);
   const [loadingSchema, setLoadingSchema] = useState(false);
-  const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
+  const [_, setExpandedTypes] = useState<Set<string>>(new Set());
   const [selectedType, setSelectedType] = useState<GraphQLType | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -933,19 +925,6 @@ export default function GraphQLClientPage() {
       fetchSchema();
     }
   }, [endpoint, fetchSchema]);
-
-  // Toggle type expansion in docs
-  const toggleTypeExpansion = useCallback((typeName: string) => {
-    setExpandedTypes((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(typeName)) {
-        newSet.delete(typeName);
-      } else {
-        newSet.add(typeName);
-      }
-      return newSet;
-    });
-  }, []);
 
   // Get user-defined types (filter out built-in GraphQL types and root types)
   const getUserDefinedTypes = useCallback(
