@@ -1,3 +1,5 @@
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
+
 interface GraphQLResponse {
   data?: any;
   errors?: Array<{
@@ -48,7 +50,7 @@ export class GraphQLClient {
     const startTime = Date.now();
 
     // Use proxy for localhost endpoints in development
-    const endpoint = this.getProxiedEndpoint(this.endpoint);
+    const endpoint = this.endpoint;
     console.log("Executing GraphQL request to:", endpoint);
 
     const fetchOptions: RequestInit = {
@@ -59,7 +61,13 @@ export class GraphQLClient {
       },
       body: JSON.stringify(request),
     };
-    const response = await fetch(endpoint, fetchOptions);
+
+    let clientFetch = fetch;
+    if (endpoint.includes("http://localhost")) {
+      clientFetch = tauriFetch;
+    }
+
+    const response = await clientFetch(endpoint, fetchOptions);
 
     const responseTime = Date.now() - startTime;
     const responseText = await response.text();
@@ -88,7 +96,7 @@ export class GraphQLClient {
   async testConnection(): Promise<boolean> {
     try {
       // Use proxy for localhost endpoints in development
-      const endpoint = this.getProxiedEndpoint(this.endpoint);
+      const endpoint = this.endpoint;
       console.log("Testing connection to:", endpoint);
 
       const fetchOptions: RequestInit = {
@@ -102,17 +110,6 @@ export class GraphQLClient {
         }),
       };
 
-      // For localhost endpoints in development, try different CORS modes
-      if (this.isLocalhostEndpoint(this.endpoint) && import.meta.env.DEV) {
-        fetchOptions.mode = "cors";
-        if (endpoint === this.endpoint) {
-          fetchOptions.headers = {
-            ...fetchOptions.headers,
-            "Access-Control-Allow-Origin": "*",
-          };
-        }
-      }
-
       const response = await fetch(endpoint, fetchOptions);
       console.log(
         "Connection test result:",
@@ -125,38 +122,6 @@ export class GraphQLClient {
       console.log("Connection test error:", error);
       return false;
     }
-  }
-
-  private isLocalhostEndpoint(endpoint: string): boolean {
-    try {
-      const url = new URL(endpoint);
-      return url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    } catch {
-      return false;
-    }
-  }
-
-  private getProxiedEndpoint(endpoint: string): string {
-    // In development, try to use proxy for localhost requests
-    if (import.meta.env.DEV && this.isLocalhostEndpoint(endpoint)) {
-      const url = new URL(endpoint);
-      console.log("Original endpoint:", endpoint);
-      console.log("Parsed URL:", {
-        hostname: url.hostname,
-        port: url.port,
-        pathname: url.pathname,
-      });
-
-      // Try proxy first for localhost:8080
-      if (url.hostname === "localhost" && url.port === "8080") {
-        const proxiedUrl = `/proxy-graphql${url.pathname}${url.search}`;
-        console.log("Attempting proxied endpoint:", proxiedUrl);
-        return proxiedUrl;
-      }
-    }
-
-    console.log("Using direct endpoint:", endpoint);
-    return endpoint;
   }
 
   private formatBytes(bytes: number): string {
