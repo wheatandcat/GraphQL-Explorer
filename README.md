@@ -37,29 +37,6 @@ GraphQL クエリの実行とテストを行う現代的な Web アプリケー�
 
 ## セットアップ
 
-### 必要条件
-
-- Node.js (v18 以上)
-- PostgreSQL データベース (Neon Database 推奨)
-
-### インストール
-
-```bash
-# リポジトリをクローン
-git clone https://github.com/wheatandcat/GraphQL-Explorer.git
-cd GraphQL-Explorer
-
-# 依存関係をインストール
-npm install
-
-# 環境変数を設定
-cp .env.example .env
-# .envファイルにDATABASE_URLを設定
-
-# データベーススキーマをプッシュ
-npm run db:push
-```
-
 ### 開発サーバーの起動
 
 ```bash
@@ -80,16 +57,6 @@ npm run tauri:dev
 
 # デスクトップアプリをビルド
 npm run tauri:build
-```
-
-## 本番環境での実行
-
-```bash
-# プロダクションビルド
-npm run build
-
-# 本番サーバーを起動
-npm start
 ```
 
 ## 使用方法
@@ -124,9 +91,6 @@ npm start
 # TypeScriptの型チェック
 npm run check
 
-# データベーススキーマの更新
-npm run db:push
-
 # フロントエンドのみの開発サーバー
 npm run dev:frontend
 
@@ -136,14 +100,6 @@ npm run tauri:dev
 # Tauriアプリのビルド
 npm run tauri:build
 ```
-
-## 環境変数
-
-| 変数名         | 必須 | 説明                                  |
-| -------------- | ---- | ------------------------------------- |
-| `DATABASE_URL` | ✓    | PostgreSQL 接続文字列                 |
-| `PORT`         | -    | サーバーポート番号 (デフォルト: 8081) |
-| `NODE_ENV`     | -    | 実行環境 (development/production)     |
 
 ## プロジェクト構成
 
@@ -156,39 +112,8 @@ npm run tauri:build
 │   │   ├── lib/           # ユーティリティ
 │   │   └── pages/         # ページコンポーネント
 │   └── index.html
-├── server/                # バックエンドアプリケーション
-│   ├── index.ts          # サーバーエントリーポイント
-│   ├── routes.ts         # ルート定義
-│   └── storage.ts        # ストレージ抽象化
 ├── shared/                # 共有型定義
 │   └── schema.ts         # データベーススキーマ
 ├── src-tauri/             # Tauriデスクトップアプリ
 └── package.json
 ```
-
-## 貢献
-
-1. このリポジトリをフォーク
-2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
-
-## ライセンス
-
-このプロジェクトは MIT ライセンスの下で公開されています。
-
-## 既知の問題
-
-- Monaco Editor は現在の設定で Worker の問題があるため、シンプルなテキストエリアを使用
-- 認証機能は現在未実装
-- データは localStorage に保存（サーバーサイドでのユーザーデータ永続化なし）
-
-## 最近の更新
-
-- 複数エンドポイント管理の実装
-- データのインポート/エクスポート機能
-- スキーマドキュメントの表示
-- リサイズ可能なレイアウト
-- クエリ履歴の自動保存
-- UI の簡素化
